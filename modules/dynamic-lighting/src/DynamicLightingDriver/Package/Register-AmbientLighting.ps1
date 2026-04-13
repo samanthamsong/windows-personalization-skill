@@ -81,8 +81,12 @@ if (-not $existingUser) {
 $existingMachine = Get-ChildItem "Cert:\LocalMachine\TrustedPeople" -ErrorAction SilentlyContinue | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
 if (-not $existingMachine) {
     Write-Host "  Importing to LocalMachine\TrustedPeople (may require elevation)..." -ForegroundColor Yellow
-    Import-Certificate -FilePath $certFile -CertStoreLocation "Cert:\LocalMachine\TrustedPeople" | Out-Null
-    Write-Host "  Imported to LocalMachine\TrustedPeople" -ForegroundColor Green
+    try {
+        Import-Certificate -FilePath $certFile -CertStoreLocation "Cert:\LocalMachine\TrustedPeople" | Out-Null
+        Write-Host "  Imported to LocalMachine\TrustedPeople" -ForegroundColor Green
+    } catch {
+        Write-Host "  Skipped LocalMachine import (no admin). CurrentUser import is sufficient." -ForegroundColor Yellow
+    }
 }
 
 Remove-Item $certFile -ErrorAction SilentlyContinue
