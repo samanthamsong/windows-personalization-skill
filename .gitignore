@@ -1,0 +1,25 @@
+# Build output
+bin/
+obj/
+*.msix
+
+# IDE
+.vs/
+*.user
+*.suo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+stderr.log
+
+# Dependencies
+node_modules/
