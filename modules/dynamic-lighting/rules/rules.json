@@ -1,12 +1,12 @@
 {
   "rules": [
     {
-      "id": "teams-pink-flash",
-      "name": "Teams pink flash",
+      "id": "any-notification-flash",
+      "name": "Any notification flash",
       "enabled": true,
       "trigger": {
         "type": "notification",
-        "app_name": "Microsoft Teams",
+        "app_name": "",
         "title_contains": null,
         "body_contains": null
       },

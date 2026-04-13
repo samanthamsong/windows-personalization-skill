@@ -66,6 +66,7 @@ Per-lamp Python scripts that create pixel-level animations on your keyboard.
 | Effect | Description |
 |--------|-------------|
 | [Koi Fish](modules/dynamic-lighting/effects/koi-fish.py) | Animated koi swimming across a pond with lily pads and water ripples |
+| [Flower Garden](modules/dynamic-lighting/effects/flower-garden.py) | Blooming flowers with butterflies drifting across the keyboard |
 | [Cherry Blossom](modules/dynamic-lighting/effects/cherry-blossom.py) | Falling cherry blossom petals |
 | [Shooting Stars](modules/dynamic-lighting/effects/shooting-stars.py) | Streaking stars across a night sky |
 | [Enchanted Forest](modules/dynamic-lighting/effects/enchanted-forest.py) | Layered forest with firefly sparkles |
@@ -119,9 +120,35 @@ If you prefer to code by hand:
 This skill is the first step toward full Windows personalization via natural language:
 
 - ✅ **V1:** Dynamic Lighting (RGB devices via MCP)
-- 🔜 **V2:** Themes (accent color, dark/light mode)
-- 🔜 **V3:** Wallpaper + Sounds
+- ✅ **V2:** Alert-based lighting (flash keyboard on Windows notifications)
+- 🔜 **V3:** Themes (accent color, dark/light mode)
+- 🔜 **V4:** Wallpaper + Sounds
 - 🔮 **Future:** Multi-surface orchestration ("make my whole PC feel like the ocean")
+
+## 🔔 Notification Alerts
+
+Flash your keyboard whenever you get a Windows notification — Teams messages, Outlook emails, any app.
+
+### How it works
+
+1. `notification-watcher.ps1` monitors the Windows Event Log for toast notifications
+2. When a toast arrives, it writes a color + duration to `rules/.pause`
+3. The running effect reads the pause file, flashes the color, then resumes the animation
+
+### Quick start
+
+```powershell
+# Terminal 1: Run any effect
+python modules/dynamic-lighting/effects/flower-garden.py
+
+# Terminal 2: Start the notification watcher (hot pink flash for 3s)
+powershell -ExecutionPolicy Bypass -File modules/dynamic-lighting/notification-watcher.ps1
+
+# Custom color/duration
+powershell -ExecutionPolicy Bypass -File modules/dynamic-lighting/notification-watcher.ps1 -Color "#00FF00" -Duration 2
+```
+
+> **Note:** Effects must include the pause-file coordination code to support alert flashes. Currently supported: `koi-fish.py`, `flower-garden.py`. Use the [template](modules/dynamic-lighting/effects/_template.py) as a starting point for new effects — copy the pause-file block from any supported effect.
 
 ## 🤝 Contributing
 
