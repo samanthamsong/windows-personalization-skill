@@ -8,7 +8,7 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 
 | Module | Status | Description |
 |--------|--------|-------------|
-| [🔆 Dynamic Lighting](modules/dynamic-lighting/) | ✅ Available | Control RGB devices via MCP server + per-lamp Python effects |
+| [🔆 Dynamic Lighting](modules/dynamic-lighting/) | ✅ Available | Control RGB devices via CLI + per-lamp Python effects |
 | [🎨 Themes](modules/themes/) | 🔜 Planned | Accent colors, dark/light mode, titlebars |
 | [🖼️ Wallpaper](modules/wallpaper/) | 🔜 Planned | Desktop wallpaper, lock screen, slideshows |
 | [🔊 Sounds](modules/sounds/) | 🔜 Planned | System sound schemes |
@@ -21,7 +21,7 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 - Python 3.10+ (for per-lamp effects)
 - A [Dynamic Lighting](https://support.microsoft.com/en-us/windows/control-your-dynamic-lighting-devices-in-windows-8e9f9b1f-6844-4c5e-9873-d836e87fcb7f) compatible device
 
-### 1. Build & register the MCP server
+### 1. Build & register the device driver
 
 ```powershell
 cd modules/dynamic-lighting
@@ -37,19 +37,23 @@ cd src/DynamicLightingMcp/Package
 
 > ⚠️ **Important:** After registration, go to **Settings → Personalization → Dynamic Lighting → Background light control** and move **Dynamic Lighting MCP** to the **top of the priority list**. This ensures the MCP server takes precedence over other lighting apps.
 
-### 2. Configure your MCP client
+### 2. Try it!
 
-**VS Code** — add to your `mcp.json`:
-```json
-{
-  "servers": {
-    "dynamic-lighting": {
-      "command": "dotnet",
-      "args": ["run", "--project", "<path-to-repo>/modules/dynamic-lighting/src/DynamicLightingMcp/DynamicLightingMcp.csproj"]
-    }
-  }
-}
+```powershell
+# Set your keyboard to a color
+python modules/dynamic-lighting/lighting.py set-color "#FF6600"
+
+# Run a per-lamp effect
+python modules/dynamic-lighting/lighting.py run-effect koi-fish
+
+# List available effects
+python modules/dynamic-lighting/lighting.py list-effects
+
+# Stop running effects
+python modules/dynamic-lighting/lighting.py stop
 ```
+
+Or tell your AI agent (Copilot, etc.) what you want in natural language — it will use the CLI commands and generate effects automatically.
 
 ### 3. Try it!
 
@@ -89,7 +93,7 @@ Just describe what you want in natural language — the agent generates the Pyth
 
 The agent uses the `render_frame(t)` pattern — a function that computes a color for every key on your keyboard based on time and position. Each key has an `(x, y)` coordinate (0–1), and the function runs at ~8fps.
 
-For simple effects (solid color, wave, breathe), the agent calls the MCP tools directly. For creative or artistic effects, it generates a Python script.
+For simple effects (solid color, wave, breathe), the agent calls CLI commands directly. For creative or artistic effects, it generates a Python script.
 
 ### Manual creation
 
@@ -119,7 +123,7 @@ If you prefer to code by hand:
 
 This skill is the first step toward full Windows personalization via natural language:
 
-- ✅ **V1:** Dynamic Lighting (RGB devices via MCP)
+- ✅ **V1:** Dynamic Lighting (RGB devices via CLI)
 - ✅ **V2:** Alert-based lighting (flash keyboard on Windows notifications)
 - 🔜 **V3:** Themes (accent color, dark/light mode)
 - 🔜 **V4:** Wallpaper + Sounds

@@ -10,54 +10,47 @@ Use this skill when a user wants to personalize or customize their Windows PC. T
 ## Capabilities
 
 ### 🔆 Dynamic Lighting (Available)
-Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, etc.) via the MCP server.
+Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, etc.).
 
-**MCP Server Setup:**
-```json
-{
-  "servers": {
-    "dynamic-lighting": {
-      "command": "dotnet",
-      "args": ["run", "--project", "modules/dynamic-lighting/src/DynamicLightingMcp/DynamicLightingMcp.csproj"]
-    }
-  }
-}
-```
+**Prerequisites:**
+- Windows 11 22H2+ with a Dynamic Lighting compatible device
+- .NET 9 SDK (build once: `dotnet build modules/dynamic-lighting/DynamicLightingMCP.sln`)
+- Python 3.10+
+- Run `modules/dynamic-lighting/src/DynamicLightingMcp/Package/Register-AmbientLighting.ps1` once for device access
 
-**Tools:**
+**CLI Commands:**
 
-| Tool | Description |
-|------|-------------|
-| `create_lighting_effect` | Create a dynamic effect from a description or structured params. Patterns: solid, wave, breathe, twinkle, gradient, rainbow. Supports layered effects. |
-| `set_solid_color` | Set all lamps to a single color (by name or hex). |
-| `set_per_lamp_colors` | Set individual lamp colors via JSON map of `{index: "#rrggbb"}`. |
-| `get_lamp_layout` | Get physical positions and metadata for all lamps on a device. |
-| `list_lighting_devices` | List connected Dynamic Lighting compatible devices. |
-| `stop_lighting_effect` | Stop the current lighting effect. |
-| `diagnose_lighting` | Run diagnostics on a device (capabilities, lamp count, connectivity). |
+| Command | Description |
+|---------|-------------|
+| `python modules/dynamic-lighting/lighting.py set-color <color>` | Set all lamps to a single color (hex or name) |
+| `python modules/dynamic-lighting/lighting.py set-per-lamp '<json>'` | Set individual lamp colors |
+| `python modules/dynamic-lighting/lighting.py list-devices` | List connected Dynamic Lighting devices |
+| `python modules/dynamic-lighting/lighting.py list-effects` | List available effect scripts |
+| `python modules/dynamic-lighting/lighting.py run-effect <name>` | Run a named effect (e.g. koi-fish) |
+| `python modules/dynamic-lighting/lighting.py stop` | Stop running effects |
+| `python modules/dynamic-lighting/lighting.py diagnose` | Run device diagnostics |
 
 **Example Prompt Mappings:**
 
-| User Says | Tool Call |
-|-----------|-----------|
-| "Make my keyboard breathe with purple" | `create_lighting_effect(description="breathe purple", pattern="breathe", base_color="#9C27B0")` |
-| "Ocean waves on my keyboard" | `create_lighting_effect(pattern="wave", base_color="#0066FF", accent_color="#00BBDD", speed=0.7)` |
-| "Cherry blossom falling" | `create_lighting_effect(pattern="twinkle", base_color="#FFB7C5", accent_color="#FFFFFF", speed=0.5, density=0.4)` |
-| "Rainbow wave" | `create_lighting_effect(pattern="rainbow", speed=1.0)` |
-| "Northern lights" | `create_lighting_effect(pattern="gradient", base_color="#00FF88", accent_color="#8800FF", speed=0.3)` |
-| "Set my keyboard to red" | `set_solid_color(color="red")` |
-| "Starry night with blue and yellow" | `create_lighting_effect(pattern="twinkle", base_color="#001133", accent_color="#FFD700", speed=0.6, density=0.3)` |
-| "Stop the lights" | `stop_lighting_effect()` |
-| "What devices do I have?" | `list_lighting_devices()` |
-| "Enchanted forest" | `create_lighting_effect(layers=[{"pattern":"breathe","base_color":"#003300","accent_color":"#00AA44","speed":0.3,"z_index":0},{"pattern":"twinkle","base_color":"#003300","accent_color":"#FFFF88","speed":0.8,"density":0.2,"z_index":1}])` |
+| User Says | Action |
+|-----------|--------|
+| "Set my keyboard to red" | `python modules/dynamic-lighting/lighting.py set-color red` |
+| "Make my keyboard breathe with purple" | Generate a breathe effect script and run it |
+| "Koi fish swimming" | `python modules/dynamic-lighting/lighting.py run-effect koi-fish` OR generate a new script |
+| "Ocean waves on my keyboard" | Generate an ocean wave effect script |
+| "Rainbow wave" | `python modules/dynamic-lighting/lighting.py run-effect rainbow` |
+| "Stop the lights" | `python modules/dynamic-lighting/lighting.py stop` |
+| "What devices do I have?" | `python modules/dynamic-lighting/lighting.py list-devices` |
+| "What effects are available?" | `python modules/dynamic-lighting/lighting.py list-effects` |
+
+**When to use CLI vs generate a script:**
+- Simple solid color → `lighting.py set-color`
+- Run existing effect → `lighting.py run-effect <name>`
+- Creative/artistic/physics-based effects → Generate a Python script
 
 **Creating Custom Effects via Natural Language:**
 
-When a user requests a complex or creative lighting effect that goes beyond the built-in patterns (solid, wave, breathe, twinkle, gradient, rainbow), the agent should **generate a per-lamp Python effect script** and run it.
-
-**When to generate a script vs use built-in tools:**
-- Simple/standard effects → use `create_lighting_effect` with built-in patterns
-- Creative, artistic, or physics-based effects (e.g. "koi fish swimming", "the matrix", "fireworks", "rainstorm") → generate a Python script
+When a user requests a complex or creative lighting effect (e.g. "koi fish swimming", "the matrix", "fireworks", "rainstorm"), the agent should **generate a per-lamp Python effect script** and run it.
 
 **How to generate an effect script:**
 
@@ -179,27 +172,26 @@ while True:
 ### 🔔 Alert-Based Lighting Rules (Available)
 Set up rules that trigger lighting effects when Windows notifications arrive.
 
-**Tools:**
+**CLI Commands:**
 
-| Tool | Description |
-|------|-------------|
-| `add_lighting_rule` | Create a rule that maps a notification trigger to a lighting action. Params: `name`, `app_name`, `action_type` (flash/pulse/solid/effect), `color`, `duration_sec`, `title_contains`, `body_contains`, `pattern`. |
-| `list_lighting_rules` | List all alert rules with their triggers, actions, and enabled status. |
-| `remove_lighting_rule` | Remove an alert rule by its ID. |
-| `start_alert_watcher` | Start the background daemon that monitors notifications and fires rules. |
-| `stop_alert_watcher` | Stop the alert watcher daemon. |
+| Command | Description |
+|---------|-------------|
+| `python modules/dynamic-lighting/alert-watcher.py add --name <name> --app <app> --color <hex> --duration <sec>` | Add a notification rule |
+| `python modules/dynamic-lighting/alert-watcher.py list` | List all rules |
+| `python modules/dynamic-lighting/alert-watcher.py remove <rule_id>` | Remove a rule |
+| `python modules/dynamic-lighting/alert-watcher.py enable <rule_id>` | Enable a rule |
+| `python modules/dynamic-lighting/alert-watcher.py disable <rule_id>` | Disable a rule |
+| `python modules/dynamic-lighting/alert-watcher.py test <rule_id>` | Test a rule |
+| `powershell -ExecutionPolicy Bypass -File modules/dynamic-lighting/notification-watcher.ps1` | Start watching for notifications |
 
 **Example Prompt Mappings:**
 
-| User Says | Tool Call |
-|-----------|-----------|
-| "Flash red when I get a Teams message" | `add_lighting_rule(name="Teams flash", app_name="Microsoft Teams", action_type="flash", color="#FF0000", duration_sec=3)` |
-| "Pulse blue for Outlook emails" | `add_lighting_rule(name="Outlook pulse", app_name="Microsoft Outlook", action_type="pulse", color="#0066FF", duration_sec=5)` |
-| "Flash green when I get a message about deployment" | `add_lighting_rule(name="Deploy alert", app_name="Microsoft Teams", action_type="flash", color="#00FF00", title_contains="deployment")` |
-| "What alert rules do I have?" | `list_lighting_rules()` |
-| "Remove the Teams flash rule" | `remove_lighting_rule(rule_id="teams-flash")` |
-| "Start watching for alerts" | `start_alert_watcher()` |
-| "Stop the alert watcher" | `stop_alert_watcher()` |
+| User Says | Action |
+|-----------|--------|
+| "Flash red when I get a Teams message" | `python modules/dynamic-lighting/alert-watcher.py add --name "Teams flash" --app "Microsoft Teams" --color "#FF0000" --duration 3` |
+| "What alert rules do I have?" | `python modules/dynamic-lighting/alert-watcher.py list` |
+| "Remove the Teams rule" | `python modules/dynamic-lighting/alert-watcher.py remove <id>` |
+| "Start watching for notifications" | `powershell -ExecutionPolicy Bypass -File modules/dynamic-lighting/notification-watcher.ps1` |
 
 ### 🎨 Themes (Planned)
 Change Windows accent color, dark/light mode, titlebar colors.
@@ -216,8 +208,8 @@ Change system sound scheme.
 ## Routing
 
 When the user's request involves:
-- **Lighting, RGB, keyboard colors, LED effects** → Use Dynamic Lighting tools
-- **Alerts, notifications, "when I get", "flash when", "notify me"** → Use Alert Rule tools
+- **Lighting, RGB, keyboard colors, LED effects** → Use Dynamic Lighting CLI commands or generate effect scripts
+- **Alerts, notifications, "when I get", "flash when", "notify me"** → Use alert-watcher.py CLI commands
 - **Theme, accent color, dark mode, light mode, titlebar** → Themes module (planned)
 - **Wallpaper, background, lock screen, desktop image** → Wallpaper module (planned)
 - **Sounds, notification sound, system audio** → Sounds module (planned)
