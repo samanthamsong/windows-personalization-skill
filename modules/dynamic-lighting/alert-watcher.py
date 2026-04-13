@@ -151,6 +151,25 @@ class LightingClient:
 # Alert actions — what happens when a rule fires
 # ---------------------------------------------------------------------------
 
+PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rules', '.pause')
+
+
+def _pause_effects(color, duration):
+    """Signal running effects to flash the given color, then resume."""
+    try:
+        with open(PAUSE_FILE, 'w') as f:
+            f.write(f'{color}|{duration}')
+    except Exception:
+        pass
+
+
+def _wait_for_resume(duration):
+    """Wait for the effect to finish the flash (pause file gets deleted)."""
+    deadline = time.time() + duration + 2  # extra buffer
+    while os.path.exists(PAUSE_FILE) and time.time() < deadline:
+        time.sleep(0.2)
+
+
 def execute_action(client, action, dry_run=False):
     """Execute a lighting action from a matched rule."""
     action_type = action.get('type', 'flash')
@@ -162,40 +181,9 @@ def execute_action(client, action, dry_run=False):
         print(f"  [DRY RUN] Would execute: {action_type} {color} for {duration}s")
         return
 
-    if action_type == 'flash':
-        # Quick flash: set color → wait → stop
-        client.set_solid_color(color)
-        time.sleep(duration)
-        client.stop_effect()
-
-    elif action_type == 'pulse':
-        # Gentle pulse: breathe effect for duration then stop
-        client.create_effect(
-            description=f"pulse {color}",
-            pattern='breathe',
-            base_color=color,
-            speed=0.8
-        )
-        time.sleep(duration)
-        client.stop_effect()
-
-    elif action_type == 'solid':
-        # Set and hold (no auto-revert)
-        client.set_solid_color(color)
-        if duration > 0:
-            time.sleep(duration)
-            client.stop_effect()
-
-    elif action_type == 'effect':
-        # Run a named pattern
-        if pattern:
-            client.create_effect(pattern=pattern, base_color=color)
-            time.sleep(duration)
-            client.stop_effect()
-        else:
-            client.set_solid_color(color)
-            time.sleep(duration)
-            client.stop_effect()
+    # Signal the running effect to handle the flash
+    _pause_effects(color, duration)
+    _wait_for_resume(duration)
 
 
 # ---------------------------------------------------------------------------
