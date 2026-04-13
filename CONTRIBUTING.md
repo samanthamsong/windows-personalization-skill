@@ -36,10 +36,10 @@ If approved, create a folder under `modules/<name>/` with:
 
 ## Development Setup
 
-### Dynamic Lighting MCP Server
+### Dynamic Lighting Driver
 ```powershell
 cd modules/dynamic-lighting
-dotnet build DynamicLightingMCP.sln
+dotnet build DynamicLightingDriver.sln
 ```
 
 ### Running Effects

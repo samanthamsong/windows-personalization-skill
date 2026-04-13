@@ -1,30 +1,20 @@
 import os
 import subprocess, json, time, threading
 
-proc = subprocess.Popen(
-    ['dotnet', 'run', '--project', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingMcp', 'DynamicLightingMcp.csproj'), '--no-build'],
-    stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=False
-)
+EXE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingDriver', 'bin', 'Debug', 'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe')
+proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
+threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
 
-def send(msg):
-    proc.stdin.write(json.dumps(msg).encode('utf-8') + b'\n')
+def send(cmd):
+    proc.stdin.write((cmd + '\n').encode())
     proc.stdin.flush()
 
-def read_response(timeout=15):
-    result = []
-    def reader():
-        line = proc.stdout.readline()
-        if line: result.append(line.decode('utf-8').strip())
-    t = threading.Thread(target=reader)
-    t.start(); t.join(timeout)
-    return result[0] if result else None
+def recv():
+    return proc.stdout.readline().decode().strip()
 
-send({'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {
-    'protocolVersion': '2024-11-05', 'capabilities': {}, 'clientInfo': {'name': 'cli', 'version': '1.0'}
-}})
-read_response(15)
-send({'jsonrpc': '2.0', 'method': 'notifications/initialized'})
-time.sleep(2)
+# Wait for driver ready
+ready = recv()
+assert ready == 'READY', f'Driver not ready: {ready}'
 
 # Enchanted forest: deep green breathing base + golden firefly twinkle + soft blue mist wave
 layers = json.dumps([
@@ -33,19 +23,9 @@ layers = json.dumps([
     {"pattern": "twinkle", "base_color": "#0A2E0A", "accent_color": "#FFE082", "speed": 0.6, "density": 0.15, "z_index": 2}
 ])
 
-send({'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call', 'params': {
-    'name': 'create_lighting_effect',
-    'arguments': {
-        'description': 'Enchanted forest - deep mossy green breathing canopy with misty blue drifting through and golden fireflies twinkling',
-        'layers': layers
-    }
-}})
-resp = read_response(15)
-if resp:
-    parsed = json.loads(resp)
-    for item in parsed.get('result', {}).get('content', []):
-        if item.get('type') == 'text':
-            print(item['text'], flush=True)
+send(f'CREATE_EFFECT layered layers={layers}')
+resp = recv()
+print(resp, flush=True)
 
 print(f'\nServer PID: {proc.pid} — Ctrl+C to stop', flush=True)
 # === LAMP LAYOUT (for alert coordination) ===
@@ -61,9 +41,6 @@ for ri, count in enumerate(rows):
         y = ri / 6.0
         lamps.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
         idx += 1
-
-def recv():
-    return json.loads(proc.stdout.readline())
 
 PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rules', '.pause')
 
@@ -81,10 +58,7 @@ try:
                 all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
                 flash_start = time.time()
                 while time.time() - flash_start < flash_duration:
-                    send({'jsonrpc':'2.0','id':100+frame,'method':'tools/call','params':{
-                        'name':'set_per_lamp_colors',
-                        'arguments':{'lamp_colors': json.dumps(all_flash)}
-                    }})
+                    send(f"SET_LAMPS {json.dumps(all_flash)}")
                     recv()
                     frame += 1
                     time.sleep(0.125)

@@ -3,7 +3,7 @@ using Windows.Devices.Lights.Effects;
 using Windows.Foundation;
 using Windows.UI;
 
-namespace DynamicLightingMcp;
+namespace DynamicLightingDriver;
 
 public enum PatternType
 {

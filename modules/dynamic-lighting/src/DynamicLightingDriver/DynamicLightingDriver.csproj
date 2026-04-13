@@ -6,7 +6,8 @@
     <WindowsSdkPackageVersion>10.0.26100.66-preview</WindowsSdkPackageVersion>
     <UseWindowsForms>true</UseWindowsForms>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
-    <ApplicationManifest>Package\DynamicLightingMcp.exe.manifest</ApplicationManifest>
+    <ApplicationManifest>Package\DynamicLightingDriver.exe.manifest</ApplicationManifest>
+    <RootNamespace>DynamicLightingDriver</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
@@ -14,11 +15,6 @@
   <!-- Resolve Color ambiguity: WinForms brings System.Drawing.Color, we use Windows.UI.Color -->
   <ItemGroup>
     <Using Remove="System.Drawing" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.5" />
-    <PackageReference Include="ModelContextProtocol" Version="1.1.0" />
   </ItemGroup>
 
 </Project>

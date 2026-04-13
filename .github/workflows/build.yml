@@ -17,5 +17,5 @@ jobs:
         with:
           dotnet-version: '9.0.x'
 
-      - name: Build Dynamic Lighting MCP Server
-        run: dotnet build modules/dynamic-lighting/DynamicLightingMCP.sln --configuration Release
+      - name: Build Dynamic Lighting Driver
+        run: dotnet build modules/dynamic-lighting/DynamicLightingDriver.sln --configuration Release

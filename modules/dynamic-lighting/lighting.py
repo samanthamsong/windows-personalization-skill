@@ -2,7 +2,7 @@
 Dynamic Lighting CLI
 ====================
 Command-line interface for controlling Dynamic Lighting devices.
-Communicates with the C# DynamicLightingMcp.exe via JSON-RPC over stdio.
+Communicates with the C# DynamicLightingDriver.exe via a simple line protocol over stdio.
 
 Usage:
     python lighting.py set-color <color>
@@ -25,22 +25,22 @@ import signal
 
 EXE = os.path.join(
     os.path.dirname(os.path.abspath(__file__)),
-    'src', 'DynamicLightingMcp', 'bin', 'Debug',
-    'net9.0-windows10.0.26100.0', 'DynamicLightingMcp.exe'
+    'src', 'DynamicLightingDriver', 'bin', 'Debug',
+    'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe'
 )
 
 EFFECTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'effects')
 
 
 # ---------------------------------------------------------------------------
-# JSON-RPC helpers
+# Line protocol helpers
 # ---------------------------------------------------------------------------
 
-def launch_server():
-    """Launch the C# DynamicLightingMcp.exe and return the subprocess."""
+def launch_driver():
+    """Launch the C# DynamicLightingDriver.exe and return the subprocess."""
     if not os.path.isfile(EXE):
-        print(f"Error: MCP server exe not found at {EXE}", file=sys.stderr)
-        print("Build it first: dotnet build modules/dynamic-lighting/DynamicLightingMCP.sln", file=sys.stderr)
+        print(f"Error: Driver exe not found at {EXE}", file=sys.stderr)
+        print("Build it first: dotnet build modules/dynamic-lighting/DynamicLightingDriver.sln", file=sys.stderr)
         sys.exit(1)
     proc = subprocess.Popen(
         [EXE],
@@ -57,63 +57,39 @@ def launch_server():
     return proc
 
 
-def send(proc, obj):
-    """Send a JSON-RPC message to the server."""
-    proc.stdin.write((json.dumps(obj) + '\n').encode())
+def send(proc, cmd):
+    """Send a line command to the driver."""
+    proc.stdin.write((cmd + '\n').encode())
     proc.stdin.flush()
 
 
 def recv(proc):
-    """Read a JSON-RPC response from the server."""
+    """Read a line response from the driver."""
     line = proc.stdout.readline()
     if not line:
         return None
-    return json.loads(line)
+    return line.decode().strip()
 
 
-def handshake(proc):
-    """Perform the MCP initialization handshake."""
-    send(proc, {
-        'jsonrpc': '2.0',
-        'id': 1,
-        'method': 'initialize',
-        'params': {
-            'protocolVersion': '2024-11-05',
-            'capabilities': {},
-            'clientInfo': {'name': 'lighting-cli', 'version': '1.0'},
-        },
-    })
-    recv(proc)
-    send(proc, {'jsonrpc': '2.0', 'method': 'notifications/initialized'})
-    time.sleep(3)
-
-
-def call_tool(proc, tool_name, arguments, req_id=2):
-    """Call an MCP tool and return the response."""
-    send(proc, {
-        'jsonrpc': '2.0',
-        'id': req_id,
-        'method': 'tools/call',
-        'params': {
-            'name': tool_name,
-            'arguments': arguments,
-        },
-    })
-    return recv(proc)
+def wait_ready(proc):
+    """Wait for the driver READY signal."""
+    ready = recv(proc)
+    if ready != 'READY':
+        print(f"Error: Driver not ready: {ready}", file=sys.stderr)
+        sys.exit(1)
 
 
 def print_response(resp):
-    """Print the text content from an MCP tool response."""
+    """Print the response from the driver."""
     if resp is None:
-        print("No response from server.")
+        print("No response from driver.")
         return
-    result = resp.get('result', resp)
-    if isinstance(result, dict) and 'content' in result:
-        for item in result['content']:
-            if item.get('type') == 'text':
-                print(item['text'])
+    if resp.startswith('OK '):
+        print(resp[3:])
+    elif resp.startswith('ERROR '):
+        print(resp[6:], file=sys.stderr)
     else:
-        print(json.dumps(result, indent=2))
+        print(resp)
 
 
 # ---------------------------------------------------------------------------
@@ -121,40 +97,44 @@ def print_response(resp):
 # ---------------------------------------------------------------------------
 
 def cmd_set_color(args):
-    proc = launch_server()
+    proc = launch_driver()
     try:
-        handshake(proc)
-        resp = call_tool(proc, 'set_solid_color', {'color': args.color})
+        wait_ready(proc)
+        send(proc, f'SET_ALL {args.color}')
+        resp = recv(proc)
         print_response(resp)
     finally:
         proc.terminate()
 
 
 def cmd_set_per_lamp(args):
-    proc = launch_server()
+    proc = launch_driver()
     try:
-        handshake(proc)
-        resp = call_tool(proc, 'set_per_lamp_colors', {'lamp_colors': args.json_str})
+        wait_ready(proc)
+        send(proc, f'SET_LAMPS {args.json_str}')
+        resp = recv(proc)
         print_response(resp)
     finally:
         proc.terminate()
 
 
 def cmd_list_devices(args):
-    proc = launch_server()
+    proc = launch_driver()
     try:
-        handshake(proc)
-        resp = call_tool(proc, 'list_lighting_devices', {})
+        wait_ready(proc)
+        send(proc, 'LIST_DEVICES')
+        resp = recv(proc)
         print_response(resp)
     finally:
         proc.terminate()
 
 
 def cmd_diagnose(args):
-    proc = launch_server()
+    proc = launch_driver()
     try:
-        handshake(proc)
-        resp = call_tool(proc, 'diagnose_lighting', {})
+        wait_ready(proc)
+        send(proc, 'DIAGNOSE')
+        resp = recv(proc)
         print_response(resp)
     finally:
         proc.terminate()

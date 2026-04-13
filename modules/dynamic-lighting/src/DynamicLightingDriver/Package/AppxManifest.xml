@@ -8,14 +8,14 @@
   IgnorableNamespaces="uap uap3 uap10 rescap">
 
   <Identity
-    Name="DynamicLightingMcp"
-    Publisher="CN=DynamicLightingMcp"
+    Name="DynamicLightingDriver"
+    Publisher="CN=DynamicLightingDriver"
     Version="1.0.0.0"
     ProcessorArchitecture="x64" />
 
   <Properties>
-    <DisplayName>Dynamic Lighting MCP</DisplayName>
-    <PublisherDisplayName>DynamicLightingMcp</PublisherDisplayName>
+    <DisplayName>Dynamic Lighting Driver</DisplayName>
+    <PublisherDisplayName>DynamicLightingDriver</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
     <uap10:AllowExternalContent>true</uap10:AllowExternalContent>
   </Properties>
@@ -33,13 +33,13 @@
   </Capabilities>
 
   <Applications>
-    <Application Id="DynamicLightingMcp"
-      Executable="DynamicLightingMcp.exe"
+    <Application Id="DynamicLightingDriver"
+      Executable="DynamicLightingDriver.exe"
       EntryPoint="Windows.FullTrustApplication">
       <uap:VisualElements
         AppListEntry="none"
-        DisplayName="Dynamic Lighting MCP"
-        Description="MCP server for natural language RGB lighting control"
+        DisplayName="Dynamic Lighting Driver"
+        Description="Stdin/stdout driver for RGB lighting control"
         BackgroundColor="transparent"
         Square150x150Logo="Assets\Square150x150Logo.png"
         Square44x44Logo="Assets\Square44x44Logo.png" />
@@ -47,9 +47,9 @@
         <uap3:Extension Category="windows.appExtension">
           <uap3:AppExtension
             Name="com.microsoft.windows.lighting"
-            Id="DynamicLightingMcp"
+            Id="DynamicLightingDriver"
             PublicFolder="public"
-            DisplayName="Dynamic Lighting MCP" />
+            DisplayName="Dynamic Lighting Driver" />
         </uap3:Extension>
       </Extensions>
     </Application>

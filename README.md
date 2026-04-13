@@ -25,17 +25,17 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 
 ```powershell
 cd modules/dynamic-lighting
-dotnet build DynamicLightingMCP.sln
+dotnet build DynamicLightingDriver.sln
 ```
 
 Then register the app for package identity (required for LampArray API access):
 
 ```powershell
-cd src/DynamicLightingMcp/Package
+cd src/DynamicLightingDriver/Package
 .\Register-AmbientLighting.ps1
 ```
 
-> ⚠️ **Important:** After registration, go to **Settings → Personalization → Dynamic Lighting → Background light control** and move **Dynamic Lighting MCP** to the **top of the priority list**. This ensures the MCP server takes precedence over other lighting apps.
+> ⚠️ **Important:** After registration, go to **Settings → Personalization → Dynamic Lighting → Background light control** and move **Dynamic Lighting Driver** to the **top of the priority list**. This ensures the driver takes precedence over other lighting apps.
 
 ### 2. Try it!
 

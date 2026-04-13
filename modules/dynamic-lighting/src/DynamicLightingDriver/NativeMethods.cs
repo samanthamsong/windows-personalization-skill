@@ -1,6 +1,6 @@
 using System.Runtime.InteropServices;
 
-namespace DynamicLightingMcp;
+namespace DynamicLightingDriver;
 
 internal static class NativeMethods
 {

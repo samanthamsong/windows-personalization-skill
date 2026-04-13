@@ -14,9 +14,9 @@ Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, 
 
 **Prerequisites:**
 - Windows 11 22H2+ with a Dynamic Lighting compatible device
-- .NET 9 SDK (build once: `dotnet build modules/dynamic-lighting/DynamicLightingMCP.sln`)
+- .NET 9 SDK (build once: `dotnet build modules/dynamic-lighting/DynamicLightingDriver.sln`)
 - Python 3.10+
-- Run `modules/dynamic-lighting/src/DynamicLightingMcp/Package/Register-AmbientLighting.ps1` once for device access
+- Run `modules/dynamic-lighting/src/DynamicLightingDriver/Package/Register-AmbientLighting.ps1` once for device access
 
 **CLI Commands:**
 
@@ -65,22 +65,20 @@ When a user requests a complex or creative lighting effect (e.g. "koi fish swimm
 ```python
 import os, subprocess, json, time, threading, sys, math
 
-# Launch MCP server
-EXE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingMcp', 'bin', 'Debug', 'net9.0-windows10.0.26100.0', 'DynamicLightingMcp.exe')
+# Launch lighting driver
+EXE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingDriver', 'bin', 'Debug', 'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe')
 proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
 threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
 
-def send(obj):
-    proc.stdin.write((json.dumps(obj) + '\n').encode())
+def send(cmd):
+    proc.stdin.write((cmd + '\n').encode())
     proc.stdin.flush()
 def recv():
-    return json.loads(proc.stdout.readline())
+    return proc.stdout.readline().decode().strip()
 
-# MCP handshake
-send({'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2024-11-05','capabilities':{},'clientInfo':{'name':'effect','version':'1.0'}}})
-recv()
-send({'jsonrpc':'2.0','method':'notifications/initialized'})
-time.sleep(3)
+# Wait for driver ready
+ready = recv()
+assert ready == 'READY', f'Driver not ready: {ready}'
 
 # Keyboard layout: 87-key TKL, 7 rows
 rows = [15, 15, 15, 14, 13, 8, 7]
@@ -127,10 +125,7 @@ while True:
             all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
             flash_start = time.time()
             while time.time() - flash_start < flash_duration:
-                send({'jsonrpc':'2.0','id':100+frame,'method':'tools/call','params':{
-                    'name':'set_per_lamp_colors',
-                    'arguments':{'lamp_colors': json.dumps(all_flash)}
-                }})
+                send(f"SET_LAMPS {json.dumps(all_flash)}")
                 recv()
                 frame += 1
                 time.sleep(0.125)
@@ -145,7 +140,7 @@ while True:
 
     t = time.time() - start
     colors = render_frame(t)
-    send({'jsonrpc':'2.0','id':100+frame,'method':'tools/call','params':{'name':'set_per_lamp_colors','arguments':{'lamp_colors': json.dumps(colors)}}})
+    send(f"SET_LAMPS {json.dumps(colors)}")
     recv()
     frame += 1
     target = frame / 8.0

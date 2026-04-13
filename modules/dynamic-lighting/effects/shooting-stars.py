@@ -2,43 +2,32 @@ import os
 import subprocess, json, time, threading, sys, math
 from PIL import Image, ImageDraw, ImageFont
 
-EXE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingMcp', 'bin', 'Debug', 'net9.0-windows10.0.26100.0', 'DynamicLightingMcp.exe')
+EXE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingDriver', 'bin', 'Debug', 'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe')
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
 threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int,1)], daemon=True).start()
 
-def send(obj):
-    proc.stdin.write((json.dumps(obj)+'\n').encode())
+def send(cmd):
+    proc.stdin.write((cmd + '\n').encode())
     proc.stdin.flush()
 def recv():
-    return json.loads(proc.stdout.readline())
+    return proc.stdout.readline().decode().strip()
 
-# Initialize
-send({'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2024-11-05','capabilities':{},'clientInfo':{'name':'test','version':'1.0'}}})
-recv()
-send({'jsonrpc':'2.0','method':'notifications/initialized'})
-time.sleep(3)
+# Wait for driver ready
+ready = recv()
+assert ready == 'READY', f'Driver not ready: {ready}'
 
 # Get lamp layout
-send({'jsonrpc':'2.0','id':2,'method':'tools/call','params':{'name':'get_lamp_layout','arguments':{}}})
-r = recv()
-layout_text = r['result']['content'][0]['text']
-print(layout_text[:500])
+send("GET_LAYOUT")
+resp = recv()
+layout_json = resp[3:]  # strip "OK " prefix
+print(layout_json[:500])
 
 # Apply shooting star effect
-send({'jsonrpc':'2.0','id':3,'method':'tools/call','params':{
-    'name':'create_lighting_effect',
-    'arguments':{
-        'pattern': 'shooting_star',
-        'base_color': '#050510',
-        'accent_color': '#88CCFF',
-        'speed': 1.0,
-        'description': 'shooting stars across keyboard'
-    }
-}})
-r = recv()
-print("\n" + r['result']['content'][0]['text'])
+send("CREATE_EFFECT shooting_star #050510 #88CCFF 1.0 shooting stars across keyboard")
+resp = recv()
+print("\n" + resp)
 
 # === VISUALIZATION ===
 # Simulate the shooting star algorithm at a few time snapshots
@@ -204,10 +193,7 @@ try:
                 all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
                 flash_start = time.time()
                 while time.time() - flash_start < flash_duration:
-                    send({'jsonrpc':'2.0','id':100+frame,'method':'tools/call','params':{
-                        'name':'set_per_lamp_colors',
-                        'arguments':{'lamp_colors': json.dumps(all_flash)}
-                    }})
+                    send(f"SET_LAMPS {json.dumps(all_flash)}")
                     recv()
                     frame += 1
                     time.sleep(0.125)

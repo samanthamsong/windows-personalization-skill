@@ -80,17 +80,17 @@ def find_matching_rules(rules_data, app_name, title, body):
 
 
 # ---------------------------------------------------------------------------
-# MCP server connection (reuses the same pattern as effect scripts)
+# Lighting driver connection (line protocol over stdio)
 # ---------------------------------------------------------------------------
 
 class LightingClient:
-    """Communicates with the Dynamic Lighting MCP server via JSON-RPC."""
+    """Communicates with the Dynamic Lighting Driver via line protocol."""
 
     def __init__(self):
         exe = os.path.join(
             os.path.dirname(os.path.abspath(__file__)),
-            'src', 'DynamicLightingMcp', 'bin', 'Debug',
-            'net9.0-windows10.0.26100.0', 'DynamicLightingMcp.exe'
+            'src', 'DynamicLightingDriver', 'bin', 'Debug',
+            'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe'
         )
         self.proc = subprocess.Popen(
             [exe], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -100,45 +100,34 @@ class LightingClient:
             target=lambda: [self.proc.stderr.readline() for _ in iter(int, 1)],
             daemon=True
         ).start()
-        self._id = 0
-        self._handshake()
+        self._wait_ready()
 
-    def _send(self, obj):
-        self.proc.stdin.write((json.dumps(obj) + '\n').encode())
+    def _send(self, cmd):
+        self.proc.stdin.write((cmd + '\n').encode())
         self.proc.stdin.flush()
 
     def _recv(self):
-        return json.loads(self.proc.stdout.readline())
+        return self.proc.stdout.readline().decode().strip()
 
-    def _handshake(self):
-        self._send({
-            'jsonrpc': '2.0', 'id': 1, 'method': 'initialize',
-            'params': {
-                'protocolVersion': '2024-11-05', 'capabilities': {},
-                'clientInfo': {'name': 'alert-watcher', 'version': '1.0'}
-            }
-        })
-        self._recv()
-        self._send({'jsonrpc': '2.0', 'method': 'notifications/initialized'})
-        time.sleep(3)
-
-    def call_tool(self, name, arguments):
-        self._id += 1
-        self._send({
-            'jsonrpc': '2.0', 'id': self._id,
-            'method': 'tools/call',
-            'params': {'name': name, 'arguments': arguments}
-        })
-        return self._recv()
+    def _wait_ready(self):
+        ready = self._recv()
+        assert ready == 'READY', f'Driver not ready: {ready}'
 
     def set_solid_color(self, color):
-        return self.call_tool('set_solid_color', {'color': color})
+        self._send(f'SET_ALL {color}')
+        return self._recv()
 
     def create_effect(self, **kwargs):
-        return self.call_tool('create_lighting_effect', kwargs)
+        pattern = kwargs.pop('pattern', kwargs.pop('description', 'solid'))
+        parts = [f'CREATE_EFFECT {pattern}']
+        for k, v in kwargs.items():
+            parts.append(f'{k}={v}')
+        self._send(' '.join(parts))
+        return self._recv()
 
     def stop_effect(self):
-        return self.call_tool('stop_lighting_effect', {})
+        self._send('STOP_EFFECT')
+        return self._recv()
 
     def shutdown(self):
         try:
@@ -216,12 +205,11 @@ def start_notification_listener(rules_path, dry_run=False):
     # Connect to lighting server (unless dry run)
     client = None
     if not dry_run:
-        print("Connecting to Dynamic Lighting MCP server...")
+        print("Connecting to Dynamic Lighting driver...")
         client = LightingClient()
         print("Connected!\n")
 
     async def _run():
-        listener = UserNotificationListener.current
         access = await listener.request_access_async()
         # UserNotificationListenerAccessStatus: 0=Allowed, 1=Denied, 2=Unspecified
         if access != 0:
@@ -346,7 +334,7 @@ def start_polling_listener(rules_path, dry_run=False):
 
     client = None
     if not dry_run:
-        print("Connecting to Dynamic Lighting MCP server...")
+        print("Connecting to Dynamic Lighting driver...")
         client = LightingClient()
         print("Connected!\n")
 
@@ -595,7 +583,7 @@ def main():
             return
         print(f"🧪 Testing rule: {rule['name']}")
         print(f"   Action: {rule['action']['type']} {rule['action'].get('color', '')} for {rule['action'].get('duration_sec', 3)}s")
-        print(f"   Connecting to Dynamic Lighting MCP server...")
+        print(f"   Connecting to Dynamic Lighting driver...")
         client = LightingClient()
         print(f"   Connected! Firing action now...")
         execute_action(client, rule['action'], dry_run=False)

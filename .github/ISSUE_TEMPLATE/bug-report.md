@@ -1,6 +1,6 @@
 ---
 name: "🐛 Bug Report"
-about: Report a bug with the MCP server or an effect script
+about: Report a bug with the lighting driver or an effect script
 labels: bug
 ---
 

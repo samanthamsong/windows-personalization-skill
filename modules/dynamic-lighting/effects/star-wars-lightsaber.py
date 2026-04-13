@@ -1,60 +1,28 @@
 import os
 import subprocess, json, time, threading, sys
 
-proc = subprocess.Popen(
-    ['dotnet', 'run', '--project', os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingMcp', 'DynamicLightingMcp.csproj')],
-    stdin=subprocess.PIPE,
-    stdout=subprocess.PIPE,
-    stderr=subprocess.PIPE,
-    text=False
-)
+EXE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingDriver', 'bin', 'Debug', 'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe')
+proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
+threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
 
-def send(msg):
-    data = json.dumps(msg).encode('utf-8')
-    proc.stdin.write(data + b'\n')
+def send(cmd):
+    proc.stdin.write((cmd + '\n').encode())
     proc.stdin.flush()
 
-def read_response(timeout=15):
-    result = []
-    def reader():
-        line = proc.stdout.readline()
-        if line:
-            result.append(line.decode('utf-8').strip())
-    t = threading.Thread(target=reader)
-    t.start()
-    t.join(timeout)
-    return result[0] if result else None
+def recv():
+    return proc.stdout.readline().decode().strip()
 
-# 1. Initialize MCP handshake
-send({'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {
-    'protocolVersion': '2024-11-05',
-    'capabilities': {},
-    'clientInfo': {'name': 'cli', 'version': '1.0'}
-}})
-read_response(10)
-
-# 2. Initialized notification
-send({'jsonrpc': '2.0', 'method': 'notifications/initialized'})
-time.sleep(2)
+# Wait for driver ready
+ready = recv()
+assert ready == 'READY', f'Driver not ready: {ready}'
 
 # 3. Apply Star Wars lightsaber duel effect
 #    Sith red vs Jedi blue — a dramatic wave sweeping across the keyboard
-send({'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call', 'params': {
-    'name': 'create_lighting_effect',
-    'arguments': {
-        'description': 'Star Wars lightsaber duel - Sith crimson red clashing with Jedi blue in an epic sweep across the galaxy',
-        'pattern': 'wave',
-        'base_color': '#CC0000',
-        'accent_color': '#0044FF',
-        'speed': 0.8,
-        'density': 0.5,
-        'direction': 'left_to_right'
-    }
-}})
-resp = read_response(15)
+send('CREATE_EFFECT wave base_color=#CC0000 accent_color=#0044FF speed=0.8 density=0.5 direction=left_to_right')
+resp = recv()
 print('⚔️  Star Wars lightsaber duel activated!', flush=True)
 print('Effect response:', resp, flush=True)
-print(f'MCP server PID: {proc.pid} — keeping alive (Ctrl+C to stop)...', flush=True)
+print(f'Driver PID: {proc.pid} — keeping alive (Ctrl+C to stop)...', flush=True)
 
 # === LAMP LAYOUT (for alert coordination) ===
 rows = [15, 15, 15, 14, 13, 8, 7]
@@ -69,9 +37,6 @@ for ri, count in enumerate(rows):
         y = ri / 6.0
         lamps.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
         idx += 1
-
-def recv():
-    return json.loads(proc.stdout.readline())
 
 PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rules', '.pause')
 
@@ -89,10 +54,7 @@ try:
                 all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
                 flash_start = time.time()
                 while time.time() - flash_start < flash_duration:
-                    send({'jsonrpc':'2.0','id':100+frame,'method':'tools/call','params':{
-                        'name':'set_per_lamp_colors',
-                        'arguments':{'lamp_colors': json.dumps(all_flash)}
-                    }})
+                    send(f"SET_LAMPS {json.dumps(all_flash)}")
                     recv()
                     frame += 1
                     time.sleep(0.125)

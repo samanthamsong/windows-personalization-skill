@@ -1,6 +1,6 @@
 # Dynamic Lighting Module
 
-An MCP server that lets AI assistants control Windows Dynamic Lighting compatible RGB devices using natural language.
+A stdin/stdout driver that lets scripts and AI assistants control Windows Dynamic Lighting compatible RGB devices.
 
 ## Prerequisites
 
@@ -13,54 +13,31 @@ An MCP server that lets AI assistants control Windows Dynamic Lighting compatibl
 
 ```powershell
 cd modules/dynamic-lighting
-dotnet build DynamicLightingMCP.sln
+dotnet build DynamicLightingDriver.sln
 ```
 
-## MCP Server Configuration
+## Registration
 
-### VS Code (`mcp.json`)
+To enable background (ambient) lighting access, run the registration script once from an elevated prompt:
 
-```json
-{
-  "servers": {
-    "dynamic-lighting": {
-      "command": "dotnet",
-      "args": [
-        "run", "--project",
-        "modules/dynamic-lighting/src/DynamicLightingMcp/DynamicLightingMcp.csproj"
-      ]
-    }
-  }
-}
+```powershell
+cd modules/dynamic-lighting/src/DynamicLightingDriver/Package
+.\Register-AmbientLighting.ps1
 ```
 
-### Claude Desktop
+## Driver Protocol
 
-```json
-{
-  "mcpServers": {
-    "dynamic-lighting": {
-      "command": "dotnet",
-      "args": [
-        "run", "--project",
-        "modules/dynamic-lighting/src/DynamicLightingMcp/DynamicLightingMcp.csproj"
-      ]
-    }
-  }
-}
-```
+The driver uses a line-based stdin/stdout protocol. Commands are sent as single lines; responses start with `OK ` or `ERROR `.
 
-## Tools
-
-| Tool | Description |
-|------|-------------|
-| `create_lighting_effect` | Create effects from natural language or structured params (pattern, colors, speed, layers) |
-| `set_solid_color` | Set all lamps to one color |
-| `set_per_lamp_colors` | Control individual LEDs via `{index: "#rrggbb"}` JSON map |
-| `get_lamp_layout` | Get physical lamp positions and metadata |
-| `list_lighting_devices` | List connected DL devices |
-| `stop_lighting_effect` | Stop the current effect |
-| `diagnose_lighting` | Run device diagnostics |
+| Command | Description |
+|---------|-------------|
+| `SET_ALL <color>` | Set all lamps to one color |
+| `SET_LAMPS <json>` | Control individual LEDs via `{index: "#rrggbb"}` JSON map |
+| `GET_LAYOUT` | Get physical lamp positions and metadata |
+| `LIST_DEVICES` | List connected DL devices |
+| `CREATE_EFFECT <pattern> [key=value ...]` | Create effects with pattern, colors, speed, layers |
+| `STOP_EFFECT` | Stop the current effect |
+| `DIAGNOSE` | Run device diagnostics |
 
 ## Supported Patterns
 
@@ -78,4 +55,4 @@ See the [effect gallery](../../README.md#-effect-gallery) for previews.
 
 ## How It Works
 
-The server uses .NET with the ModelContextProtocol SDK over stdio transport. `LampArrayService` discovers devices via `DeviceWatcher` + `LampArray.GetDeviceSelector()`. `EffectEngine` converts parameters into `LampArrayCustomEffect` instances. `LightingTools` exposes MCP tools that translate natural language into effect parameters.
+The driver uses .NET with a simple line protocol over stdin/stdout. `LampArrayService` discovers devices via `DeviceWatcher` + `LampArray.GetDeviceSelector()`. `EffectEngine` converts parameters into `LampArrayCustomEffect` instances. `CommandHandler` parses line commands and dispatches to the service classes.

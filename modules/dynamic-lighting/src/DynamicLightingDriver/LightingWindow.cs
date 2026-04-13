@@ -2,10 +2,10 @@ using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Windows.Devices.Lights;
 
-namespace DynamicLightingMcp;
+namespace DynamicLightingDriver;
 
 /// <summary>
-/// A small companion window that gives the MCP server process foreground status,
+/// A small companion window that gives the driver process foreground status,
 /// which is required for LampArray.IsAvailable to become true on Windows 11.
 /// Runs on a dedicated STA thread.
 /// </summary>
@@ -281,7 +281,7 @@ public sealed class LightingWindow : IDisposable
 
         _form = new ForegroundForm
         {
-            Text = "🌈 Dynamic Lighting MCP",
+            Text = "🌈 Dynamic Lighting Driver",
             Width = 380,
             Height = 140,
             StartPosition = FormStartPosition.Manual,
@@ -295,7 +295,7 @@ public sealed class LightingWindow : IDisposable
 
         _statusLabel = new Label
         {
-            Text = "MCP server ready. Waiting for lighting commands...",
+            Text = "Driver ready. Waiting for lighting commands...",
             Dock = DockStyle.Fill,
             TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
             Font = new System.Drawing.Font("Segoe UI", 11),
@@ -308,7 +308,7 @@ public sealed class LightingWindow : IDisposable
 
         _form.FormClosing += (s, e) =>
         {
-            // Minimize instead of close so the MCP server keeps running
+            // Minimize instead of close so the driver keeps running
             if (!_disposed)
             {
                 e.Cancel = true;

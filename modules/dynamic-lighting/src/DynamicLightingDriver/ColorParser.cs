@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text.RegularExpressions;
 using Windows.UI;
 
-namespace DynamicLightingMcp;
+namespace DynamicLightingDriver;
 
 public static class ColorParser
 {

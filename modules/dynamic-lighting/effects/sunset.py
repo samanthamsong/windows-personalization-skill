@@ -15,26 +15,22 @@ import sys
 import math
 import random
 
-# === MCP SERVER ===
-EXE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingMcp', 'bin', 'Debug', 'net9.0-windows10.0.26100.0', 'DynamicLightingMcp.exe')
+# === LIGHTING DRIVER ===
+EXE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingDriver', 'bin', 'Debug', 'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe')
 
 proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
 threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
 
-def send(obj):
-    proc.stdin.write((json.dumps(obj) + '\n').encode())
+def send(cmd):
+    proc.stdin.write((cmd + '\n').encode())
     proc.stdin.flush()
 
 def recv():
-    return json.loads(proc.stdout.readline())
+    return proc.stdout.readline().decode().strip()
 
-send({'jsonrpc': '2.0', 'id': 1, 'method': 'initialize', 'params': {
-    'protocolVersion': '2024-11-05', 'capabilities': {},
-    'clientInfo': {'name': 'effect-script', 'version': '1.0'}
-}})
-recv()
-send({'jsonrpc': '2.0', 'method': 'notifications/initialized'})
-time.sleep(3)
+# Wait for driver ready
+ready = recv()
+assert ready == 'READY', f'Driver not ready: {ready}'
 
 # === KEYBOARD LAYOUT (87-key TKL) ===
 rows = [15, 15, 15, 14, 13, 8, 7]
@@ -122,10 +118,7 @@ try:
                 all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
                 flash_start = time.time()
                 while time.time() - flash_start < flash_duration:
-                    send({'jsonrpc':'2.0','id':100+frame,'method':'tools/call','params':{
-                        'name':'set_per_lamp_colors',
-                        'arguments':{'lamp_colors': json.dumps(all_flash)}
-                    }})
+                    send(f"SET_LAMPS {json.dumps(all_flash)}")
                     recv()
                     frame += 1
                     time.sleep(0.125)
@@ -139,10 +132,7 @@ try:
             continue
         t = time.time() - start
         colors = render_frame(t)
-        send({'jsonrpc': '2.0', 'id': 100 + frame, 'method': 'tools/call', 'params': {
-            'name': 'set_per_lamp_colors',
-            'arguments': {'lamp_colors': json.dumps(colors)}
-        }})
+        send(f"SET_LAMPS {json.dumps(colors)}")
         recv()
         frame += 1
         elapsed = time.time() - start

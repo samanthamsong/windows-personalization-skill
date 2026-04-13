@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Registers the Dynamic Lighting MCP server as an ambient lighting app using a signed MSIX package.
+    Registers the Dynamic Lighting Driver as an ambient lighting app using a signed MSIX package.
 .DESCRIPTION
     This script:
     1. Builds the .NET project
@@ -11,7 +11,7 @@
     and can control lighting in the background without needing foreground focus.
 .NOTES
     Requires elevation (admin) for certificate import to LocalMachine\TrustedPeople.
-    To unregister: Get-AppxPackage *DynamicLightingMcp* | Remove-AppxPackage
+    To unregister: Get-AppxPackage *DynamicLightingDriver* | Remove-AppxPackage
 #>
 
 param(
@@ -22,7 +22,7 @@ $ErrorActionPreference = "Stop"
 
 $ProjectDir = Split-Path -Parent $PSScriptRoot
 $ProjectRoot = Split-Path -Parent $ProjectDir
-$CsprojPath = Join-Path $ProjectDir "DynamicLightingMcp.csproj"
+$CsprojPath = Join-Path $ProjectDir "DynamicLightingDriver.csproj"
 $PackageDir = Join-Path $ProjectDir "Package"
 $ManifestPath = Join-Path $PackageDir "AppxManifest.xml"
 
@@ -38,7 +38,7 @@ $SdkBinDir = Get-ChildItem "C:\Program Files (x86)\Windows Kits\10\bin" -Directo
 $MakeAppx = Join-Path $SdkBinDir.FullName "x64\MakeAppx.exe"
 $SignTool = Join-Path $SdkBinDir.FullName "x64\SignTool.exe"
 
-Write-Host "=== Dynamic Lighting MCP — Ambient App Registration ===" -ForegroundColor Cyan
+Write-Host "=== Dynamic Lighting Driver — Ambient App Registration ===" -ForegroundColor Cyan
 
 # Step 1: Build
 Write-Host "`nStep 1: Building project..." -ForegroundColor Yellow
@@ -51,7 +51,7 @@ Write-Host "  Build succeeded." -ForegroundColor Green
 
 # Step 2: Create or find self-signed certificate
 Write-Host "`nStep 2: Ensuring signing certificate exists..." -ForegroundColor Yellow
-$Publisher = "CN=DynamicLightingMcp"
+$Publisher = "CN=DynamicLightingDriver"
 $cert = Get-ChildItem "Cert:\CurrentUser\My" | Where-Object { $_.Subject -eq $Publisher -and $_.NotAfter -gt (Get-Date) } | Select-Object -First 1
 
 if (-not $cert) {
@@ -60,7 +60,7 @@ if (-not $cert) {
         -Type Custom `
         -Subject $Publisher `
         -KeyUsage DigitalSignature `
-        -FriendlyName "Dynamic Lighting MCP Dev Certificate" `
+        -FriendlyName "Dynamic Lighting Driver Dev Certificate" `
         -CertStoreLocation "Cert:\CurrentUser\My" `
         -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
     Write-Host "  Created certificate: $($cert.Thumbprint)" -ForegroundColor Green
@@ -69,7 +69,7 @@ if (-not $cert) {
 }
 
 # Import to Trusted People stores
-$certFile = Join-Path $env:TEMP "DynamicLightingMcp.cer"
+$certFile = Join-Path $env:TEMP "DynamicLightingDriver.cer"
 Export-Certificate -Cert $cert -FilePath $certFile | Out-Null
 
 $existingUser = Get-ChildItem "Cert:\CurrentUser\TrustedPeople" -ErrorAction SilentlyContinue | Where-Object { $_.Thumbprint -eq $cert.Thumbprint }
@@ -89,7 +89,7 @@ Remove-Item $certFile -ErrorAction SilentlyContinue
 
 # Step 3: Unregister previous version if present
 Write-Host "`nStep 3: Checking for existing registration..." -ForegroundColor Yellow
-$existing = Get-AppxPackage -Name "DynamicLightingMcp" -ErrorAction SilentlyContinue
+$existing = Get-AppxPackage -Name "DynamicLightingDriver" -ErrorAction SilentlyContinue
 if ($existing) {
     Write-Host "  Removing existing package..." -ForegroundColor Yellow
     Remove-AppxPackage $existing.PackageFullName
@@ -99,10 +99,19 @@ if ($existing) {
     Write-Host "  No existing registration found." -ForegroundColor Green
 }
 
+# Also remove old DynamicLightingMcp package if present
+$oldPkg = Get-AppxPackage -Name "DynamicLightingMcp" -ErrorAction SilentlyContinue
+if ($oldPkg) {
+    Write-Host "  Removing old DynamicLightingMcp package..." -ForegroundColor Yellow
+    Remove-AppxPackage $oldPkg.PackageFullName
+    Start-Sleep -Seconds 2
+    Write-Host "  Removed old package." -ForegroundColor Green
+}
+
 # Step 4: Create staging directory and .msix
 Write-Host "`nStep 4: Creating signed .msix package..." -ForegroundColor Yellow
 $StageDir = Join-Path $ProjectDir "PackageStaging"
-$MsixPath = Join-Path $ProjectDir "DynamicLightingMcp.msix"
+$MsixPath = Join-Path $ProjectDir "DynamicLightingDriver.msix"
 
 if (Test-Path $StageDir) { Remove-Item $StageDir -Recurse -Force }
 New-Item $StageDir -ItemType Directory | Out-Null
@@ -113,7 +122,7 @@ Copy-Item (Join-Path $PackageDir "Assets") "$StageDir\Assets" -Recurse
 if (Test-Path (Join-Path $PackageDir "public")) {
     Copy-Item (Join-Path $PackageDir "public") "$StageDir\public" -Recurse
 }
-Copy-Item (Join-Path $OutputDir "DynamicLightingMcp.exe") "$StageDir\" -Force
+Copy-Item (Join-Path $OutputDir "DynamicLightingDriver.exe") "$StageDir\" -Force
 
 # Create .msix
 Remove-Item $MsixPath -ErrorAction SilentlyContinue
@@ -146,7 +155,7 @@ Write-Host "  Installation succeeded!" -ForegroundColor Green
 
 # Step 6: Verify
 Write-Host "`nStep 6: Verifying registration..." -ForegroundColor Yellow
-$pkg = Get-AppxPackage -Name "DynamicLightingMcp"
+$pkg = Get-AppxPackage -Name "DynamicLightingDriver"
 if ($pkg) {
     Write-Host "  Package: $($pkg.PackageFullName)" -ForegroundColor Green
     Write-Host "  Status:  $($pkg.Status)" -ForegroundColor Green
@@ -159,4 +168,4 @@ Write-Host "`n=== Done ===" -ForegroundColor Cyan
 Write-Host 'Your app should now appear in:'
 Write-Host '  Settings -> Personalization -> Dynamic Lighting -> Background light control'
 Write-Host ''
-Write-Host 'To unregister: Get-AppxPackage *DynamicLightingMcp* | Remove-AppxPackage'
+Write-Host 'To unregister: Get-AppxPackage *DynamicLightingDriver* | Remove-AppxPackage'

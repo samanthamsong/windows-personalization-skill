@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using Windows.Devices.Enumeration;
 using Windows.Devices.Lights;
 
-namespace DynamicLightingMcp;
+namespace DynamicLightingDriver;
 
 public sealed record LampArrayInfo(
     string Id,
