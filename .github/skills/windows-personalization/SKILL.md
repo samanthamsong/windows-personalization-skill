@@ -144,6 +144,31 @@ while True:
 - `shooting-stars.py` — streaking particles across a night sky
 - `enchanted-forest.py` — layered forest floor with firefly overlay
 
+### 🔔 Alert-Based Lighting Rules (Available)
+Set up rules that trigger lighting effects when Windows notifications arrive.
+
+**Tools:**
+
+| Tool | Description |
+|------|-------------|
+| `add_lighting_rule` | Create a rule that maps a notification trigger to a lighting action. Params: `name`, `app_name`, `action_type` (flash/pulse/solid/effect), `color`, `duration_sec`, `title_contains`, `body_contains`, `pattern`. |
+| `list_lighting_rules` | List all alert rules with their triggers, actions, and enabled status. |
+| `remove_lighting_rule` | Remove an alert rule by its ID. |
+| `start_alert_watcher` | Start the background daemon that monitors notifications and fires rules. |
+| `stop_alert_watcher` | Stop the alert watcher daemon. |
+
+**Example Prompt Mappings:**
+
+| User Says | Tool Call |
+|-----------|-----------|
+| "Flash red when I get a Teams message" | `add_lighting_rule(name="Teams flash", app_name="Microsoft Teams", action_type="flash", color="#FF0000", duration_sec=3)` |
+| "Pulse blue for Outlook emails" | `add_lighting_rule(name="Outlook pulse", app_name="Microsoft Outlook", action_type="pulse", color="#0066FF", duration_sec=5)` |
+| "Flash green when I get a message about deployment" | `add_lighting_rule(name="Deploy alert", app_name="Microsoft Teams", action_type="flash", color="#00FF00", title_contains="deployment")` |
+| "What alert rules do I have?" | `list_lighting_rules()` |
+| "Remove the Teams flash rule" | `remove_lighting_rule(rule_id="teams-flash")` |
+| "Start watching for alerts" | `start_alert_watcher()` |
+| "Stop the alert watcher" | `stop_alert_watcher()` |
+
 ### 🎨 Themes (Planned)
 Change Windows accent color, dark/light mode, titlebar colors.
 - Future: PowerShell scripts in `modules/themes/`
@@ -160,6 +185,7 @@ Change system sound scheme.
 
 When the user's request involves:
 - **Lighting, RGB, keyboard colors, LED effects** → Use Dynamic Lighting tools
+- **Alerts, notifications, "when I get", "flash when", "notify me"** → Use Alert Rule tools
 - **Theme, accent color, dark mode, light mode, titlebar** → Themes module (planned)
 - **Wallpaper, background, lock screen, desktop image** → Wallpaper module (planned)
 - **Sounds, notification sound, system audio** → Sounds module (planned)
