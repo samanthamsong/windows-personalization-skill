@@ -8,6 +8,13 @@ How it works:
 2. Calls `set_per_lamp_colors` each frame with a dict of {lamp_index: "#rrggbb"}
 3. Your job: implement `render_frame(t)` to return colors for each lamp
 
+Alert flash coordination:
+    Effects support pause-file alert overrides. When ../rules/.pause exists,
+    the animation loop reads the file (format: #RRGGBB|seconds), flashes all
+    lamps that color for the specified duration, deletes the file, and resumes.
+    The PAUSE_FILE constant and check block at the top of the while-loop handle
+    this automatically — keep them in your effect.
+
 Quick start:
     1. Copy this file: cp _template.py my-effect.py
     2. Edit the EFFECT CONFIG section and render_frame()
@@ -101,10 +108,38 @@ def render_frame(t):
 print(f"Starting {EFFECT_NAME} (~{FPS}fps). Press Ctrl+C to stop.")
 sys.stdout.flush()
 
+PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rules', '.pause')
+
 frame = 0
 start = time.time()
 try:
     while True:
+        # Alert flash coordination — check for notification override
+        if os.path.exists(PAUSE_FILE):
+            try:
+                with open(PAUSE_FILE, 'r') as f:
+                    alert_data = f.read().strip()
+                parts = alert_data.split('|')
+                flash_color = parts[0] if parts[0].startswith('#') else '#FF69B4'
+                flash_duration = float(parts[1]) if len(parts) > 1 else 3.0
+                all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
+                flash_start = time.time()
+                while time.time() - flash_start < flash_duration:
+                    send({'jsonrpc':'2.0','id':100+frame,'method':'tools/call','params':{
+                        'name':'set_per_lamp_colors',
+                        'arguments':{'lamp_colors': json.dumps(all_flash)}
+                    }})
+                    recv()
+                    frame += 1
+                    time.sleep(0.125)
+            except Exception as e:
+                print(f"Alert flash error: {e}")
+            finally:
+                try:
+                    os.remove(PAUSE_FILE)
+                except Exception:
+                    pass
+            continue
         t = time.time() - start
         colors = render_frame(t)
         send({'jsonrpc': '2.0', 'id': 100 + frame, 'method': 'tools/call', 'params': {
