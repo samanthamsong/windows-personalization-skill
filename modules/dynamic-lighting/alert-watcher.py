@@ -331,21 +331,29 @@ def start_notification_listener(rules_path, dry_run=False):
 
 
 # ---------------------------------------------------------------------------
-# Polling fallback (no WinRT required — uses PowerShell to read Action Center)
+# Polling fallback using Python winsdk (async polling loop)
 # ---------------------------------------------------------------------------
 
 def start_polling_listener(rules_path, dry_run=False):
-    """Fallback listener that polls for notifications via PowerShell.
-    Less efficient but works without winsdk package."""
+    """Polling listener that uses Python winsdk to check for new notifications."""
+    try:
+        from winsdk.windows.ui.notifications.management import UserNotificationListener
+        from winsdk.windows.ui.notifications import NotificationKinds
+    except ImportError:
+        print("ERROR: 'winsdk' package not installed. Run: pip install winsdk")
+        sys.exit(1)
 
     print("=== Alert Watcher (Polling Mode) ===")
-    print("Using PowerShell polling fallback (install 'winsdk' for native mode)")
     print(f"Rules: {rules_path or RULES_PATH}")
+    print(f"Dry run: {dry_run}")
     print()
 
     rules_data = load_rules(rules_path)
     enabled_count = sum(1 for r in rules_data['rules'] if r.get('enabled', True))
     print(f"Loaded {len(rules_data['rules'])} rules ({enabled_count} enabled)")
+    for r in rules_data['rules']:
+        status = "✅" if r.get('enabled', True) else "⏸️"
+        print(f"  {status} {r['id']}: {r['name']}")
     print()
 
     client = None
@@ -354,74 +362,133 @@ def start_polling_listener(rules_path, dry_run=False):
         client = LightingClient()
         print("Connected!\n")
 
-    print("Listening for notifications via polling... (Ctrl+C to stop)\n")
+    async def _poll():
+        listener = UserNotificationListener.current
+        access = await listener.request_access_async()
+        if access != 0:
+            print(f"ERROR: Notification access denied (status={access})")
+            print("Notification listener requires package identity or notification access.")
+            print("Falling back to file-based trigger mode.")
+            print(f"To test manually, run: python alert-watcher.py test <rule_id>")
+            print()
+            await _file_trigger_loop(rules_path, client, dry_run)
+            return
 
-    # PowerShell command to get recent notifications
-    ps_cmd = '''
-    [Windows.UI.Notifications.Management.UserNotificationListener,Windows.UI.Notifications.Management,ContentType=WindowsRuntime] | Out-Null
-    $listener = [Windows.UI.Notifications.Management.UserNotificationListener]::Current
-    $notifications = $listener.GetNotificationsAsync([Windows.UI.Notifications.NotificationKinds]::Toast).GetAwaiter().GetResult()
-    foreach ($n in $notifications) {
-        $app = try { $n.AppInfo.DisplayInfo.DisplayName } catch { "Unknown" }
-        Write-Output "$($n.Id)|$app"
-    }
-    '''
+        print("Notification access granted! Polling for new notifications...\n")
+        sys.stdout.flush()
 
-    seen_ids = set()
-    cooldown_until = 0
-    cooldown_sec = rules_data.get('settings', {}).get('cooldown_sec', 5)
+        seen_ids = set()
+        cooldown_until = 0
+        cooldown_sec = rules_data.get('settings', {}).get('cooldown_sec', 5)
 
-    try:
+        # Seed seen_ids with existing notifications so we only fire on NEW ones
+        try:
+            existing = await listener.get_notifications_async(NotificationKinds.TOAST)
+            for notif in existing:
+                seen_ids.add(notif.id)
+            print(f"Indexed {len(seen_ids)} existing notifications (will only fire on new ones)\n")
+        except Exception:
+            pass
+
         while True:
             try:
-                rules_data = load_rules(rules_path)
+                current_rules = load_rules(rules_path)
             except Exception:
-                pass
+                current_rules = rules_data
 
             try:
-                result = subprocess.run(
-                    ['powershell', '-NoProfile', '-Command', ps_cmd],
-                    capture_output=True, text=True, timeout=10
-                )
-                for line in result.stdout.strip().split('\n'):
-                    if '|' not in line:
-                        continue
-                    nid, app_name = line.split('|', 1)
+                notifications = await listener.get_notifications_async(NotificationKinds.TOAST)
+                for notif in notifications:
+                    nid = notif.id
                     if nid in seen_ids:
                         continue
                     seen_ids.add(nid)
 
+                    try:
+                        app_info = notif.app_info
+                        app_name = app_info.display_info.display_name if app_info else "Unknown"
+                    except Exception:
+                        app_name = "Unknown"
+
                     timestamp = datetime.now().strftime("%H:%M:%S")
-                    print(f"[{timestamp}] Notification from: {app_name}")
+                    print(f"[{timestamp}] 🔔 New notification from: {app_name}")
 
                     now = time.time()
                     if now < cooldown_until:
                         print(f"  ⏳ Cooldown active, skipping")
                         continue
 
-                    matches = find_matching_rules(rules_data, app_name, "", "")
+                    matches = find_matching_rules(current_rules, app_name, "", "")
                     if matches:
                         for rule in matches:
-                            print(f"  🔔 Rule matched: {rule['name']}")
+                            print(f"  💡 Rule matched: {rule['name']}")
                             execute_action(client, rule['action'], dry_run)
                         cooldown_until = now + cooldown_sec
                     else:
                         print(f"  (no matching rules)")
                     print()
+                    sys.stdout.flush()
             except Exception as e:
                 print(f"  Poll error: {e}")
 
             if len(seen_ids) > 10000:
                 seen_ids = set(list(seen_ids)[-5000:])
 
-            time.sleep(2)
+            await asyncio.sleep(2)
 
+    try:
+        asyncio.run(_poll())
     except KeyboardInterrupt:
         print("\nStopping alert watcher...")
         if client:
             client.stop_effect()
             client.shutdown()
         print("Stopped.")
+
+
+async def _file_trigger_loop(rules_path, client, dry_run):
+    """Fallback: watch a trigger file for manual/external triggers."""
+    trigger_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'rules')
+    trigger_file = os.path.join(trigger_dir, '.trigger')
+    print(f"File trigger mode: write app name to {trigger_file} to simulate a notification")
+    print("Example: echo Microsoft Teams > rules\\.trigger\n")
+    sys.stdout.flush()
+
+    cooldown_until = 0
+
+    while True:
+        try:
+            rules_data = load_rules(rules_path)
+        except Exception:
+            pass
+
+        if os.path.exists(trigger_file):
+            try:
+                app_name = open(trigger_file).read().strip()
+                os.remove(trigger_file)
+                if app_name:
+                    timestamp = datetime.now().strftime("%H:%M:%S")
+                    print(f"[{timestamp}] 🔔 File trigger: {app_name}")
+
+                    now = time.time()
+                    cooldown_sec = rules_data.get('settings', {}).get('cooldown_sec', 5)
+                    if now < cooldown_until:
+                        print(f"  ⏳ Cooldown active, skipping")
+                    else:
+                        matches = find_matching_rules(rules_data, app_name, "", "")
+                        if matches:
+                            for rule in matches:
+                                print(f"  💡 Rule matched: {rule['name']}")
+                                execute_action(client, rule['action'], dry_run)
+                            cooldown_until = now + cooldown_sec
+                        else:
+                            print(f"  (no matching rules)")
+                    print()
+                    sys.stdout.flush()
+            except Exception as e:
+                print(f"  Trigger error: {e}")
+
+        await asyncio.sleep(1)
 
 
 # ---------------------------------------------------------------------------
