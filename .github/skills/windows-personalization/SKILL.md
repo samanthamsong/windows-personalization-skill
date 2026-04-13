@@ -51,8 +51,98 @@ Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, 
 | "What devices do I have?" | `list_lighting_devices()` |
 | "Enchanted forest" | `create_lighting_effect(layers=[{"pattern":"breathe","base_color":"#003300","accent_color":"#00AA44","speed":0.3,"z_index":0},{"pattern":"twinkle","base_color":"#003300","accent_color":"#FFFF88","speed":0.8,"density":0.2,"z_index":1}])` |
 
-**Per-Lamp Scripting:**
-For advanced pixel-level effects (animations, physics simulations, art), see `modules/dynamic-lighting/effects/`. Each script uses the `set_per_lamp_colors` tool to control individual LEDs at ~8fps.
+**Creating Custom Effects via Natural Language:**
+
+When a user requests a complex or creative lighting effect that goes beyond the built-in patterns (solid, wave, breathe, twinkle, gradient, rainbow), the agent should **generate a per-lamp Python effect script** and run it.
+
+**When to generate a script vs use built-in tools:**
+- Simple/standard effects → use `create_lighting_effect` with built-in patterns
+- Creative, artistic, or physics-based effects (e.g. "koi fish swimming", "the matrix", "fireworks", "rainstorm") → generate a Python script
+
+**How to generate an effect script:**
+
+1. Create a Python file in `modules/dynamic-lighting/effects/` based on the template below
+2. Implement the `render_frame(t)` function that returns a color for each key based on time
+3. Run the script with `python <script_path>`
+
+**Script structure (follow this exactly):**
+
+```python
+import os, subprocess, json, time, threading, sys, math
+
+# Launch MCP server
+EXE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src', 'DynamicLightingMcp', 'bin', 'Debug', 'net9.0-windows10.0.26100.0', 'DynamicLightingMcp.exe')
+proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
+threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
+
+def send(obj):
+    proc.stdin.write((json.dumps(obj) + '\n').encode())
+    proc.stdin.flush()
+def recv():
+    return json.loads(proc.stdout.readline())
+
+# MCP handshake
+send({'jsonrpc':'2.0','id':1,'method':'initialize','params':{'protocolVersion':'2024-11-05','capabilities':{},'clientInfo':{'name':'effect','version':'1.0'}}})
+recv()
+send({'jsonrpc':'2.0','method':'notifications/initialized'})
+time.sleep(3)
+
+# Keyboard layout: 87-key TKL, 7 rows
+rows = [15, 15, 15, 14, 13, 8, 7]
+row_offsets = [0, 0, 0.075, 0.12, 0.15, 0, 0.85]
+row_kw = [1, 1, 1, 1, 1, 1.5, 1]
+
+lamps = []
+idx = 0
+for ri, count in enumerate(rows):
+    for ci in range(count):
+        x = (row_offsets[ri] + ci * row_kw[ri]) / 15.0  # 0.0 to 1.0, left to right
+        y = ri / 6.0                                      # 0.0 to 1.0, top to bottom
+        lamps.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
+        idx += 1
+
+def lerp(c1, c2, t):
+    t = max(0, min(1, t))
+    return tuple(int(c1[i] + (c2[i] - c1[i]) * t) for i in range(3))
+
+def render_frame(t):
+    """Return {lamp_index_str: '#rrggbb'} for each lamp at time t seconds."""
+    colors = {}
+    for lamp in lamps:
+        # YOUR EFFECT LOGIC HERE using lamp['x'], lamp['y'], and t
+        color = (0, 0, 0)
+        colors[str(lamp['idx'])] = '#{:02x}{:02x}{:02x}'.format(*color)
+    return colors
+
+# Animation loop at ~8fps
+frame = 0
+start = time.time()
+while True:
+    t = time.time() - start
+    colors = render_frame(t)
+    send({'jsonrpc':'2.0','id':100+frame,'method':'tools/call','params':{'name':'set_per_lamp_colors','arguments':{'lamp_colors': json.dumps(colors)}}})
+    recv()
+    frame += 1
+    target = frame / 8.0
+    if target > (time.time() - start):
+        time.sleep(target - (time.time() - start))
+```
+
+**Key design principles for render_frame(t):**
+- Each lamp has `x` (0–1, left to right) and `y` (0–1, top to bottom) — use these for spatial effects
+- `t` is elapsed seconds — use for animation (sin waves, movement, physics)
+- Return hex color strings like `'#ff6600'`
+- Use `lerp()` to blend between colors
+- Use `math.sin()`, `math.cos()` for waves and oscillation
+- For moving objects: compute distance from each lamp to the object's position
+- For layered effects: compute a base layer, then overlay elements on top
+- Keep FPS at ~8 for smooth performance
+
+**Example reference effects in `modules/dynamic-lighting/effects/`:**
+- `koi-fish.py` — animated fish with body segments, water ripples, lily pads, caustic shimmer
+- `cherry-blossom.py` — falling petals with wind physics
+- `shooting-stars.py` — streaking particles across a night sky
+- `enchanted-forest.py` — layered forest floor with firefly overlay
 
 ### 🎨 Themes (Planned)
 Change Windows accent color, dark/light mode, titlebar colors.

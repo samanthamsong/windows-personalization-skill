@@ -69,7 +69,21 @@ Per-lamp Python scripts that create pixel-level animations on your keyboard.
 
 ## 🛠️ Create Your Own Effect
 
-1. Copy the template:
+Just describe what you want in natural language — the agent generates the Python script and runs it on your keyboard.
+
+> **You:** "Create a rainstorm effect with blue drops falling down the keyboard"
+>
+> **Agent:** *generates `rainstorm.py` using the per-lamp scripting framework, runs it*
+
+### How it works
+
+The agent uses the `render_frame(t)` pattern — a function that computes a color for every key on your keyboard based on time and position. Each key has an `(x, y)` coordinate (0–1), and the function runs at ~8fps.
+
+For simple effects (solid color, wave, breathe), the agent calls the MCP tools directly. For creative or artistic effects, it generates a Python script.
+
+### Manual creation
+
+If you prefer to code by hand:
    ```powershell
    cp modules/dynamic-lighting/effects/_template.py modules/dynamic-lighting/effects/my-effect.py
    ```
