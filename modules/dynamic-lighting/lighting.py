@@ -186,8 +186,15 @@ def cmd_run_effect(args):
         print(f"Effect not found: {script}", file=sys.stderr)
         print("Run 'python lighting.py list-effects' to see available effects.", file=sys.stderr)
         sys.exit(1)
-    p = subprocess.Popen([sys.executable, script])
+    # Use CREATE_NEW_PROCESS_GROUP so the effect survives if this CLI exits
+    flags = subprocess.CREATE_NEW_PROCESS_GROUP
+    p = subprocess.Popen([sys.executable, script], creationflags=flags)
     print(f"Started effect '{args.name}' (PID {p.pid})")
+    print("Press Ctrl+C to detach (effect keeps running).")
+    try:
+        p.wait()
+    except KeyboardInterrupt:
+        print(f"\nDetached. Effect still running (PID {p.pid}). Use 'lighting.py stop' to end it.")
 
 
 def cmd_stop(args):
