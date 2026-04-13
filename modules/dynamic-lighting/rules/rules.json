@@ -1,0 +1,60 @@
+{
+  "rules": [
+    {
+      "id": "example-teams-flash",
+      "name": "Teams notification flash",
+      "enabled": false,
+      "trigger": {
+        "type": "notification",
+        "app_name": "Microsoft Teams",
+        "title_contains": null,
+        "body_contains": null
+      },
+      "action": {
+        "type": "flash",
+        "color": "#FF0000",
+        "duration_sec": 3,
+        "pattern": null
+      }
+    },
+    {
+      "id": "teams-red-flash",
+      "name": "Teams red flash",
+      "enabled": true,
+      "trigger": {
+        "type": "notification",
+        "app_name": "Microsoft Teams",
+        "title_contains": null,
+        "body_contains": null
+      },
+      "action": {
+        "type": "flash",
+        "color": "#FF0000",
+        "duration_sec": 3,
+        "pattern": null
+      }
+    },
+    {
+      "id": "outlook-blue-pulse",
+      "name": "Outlook blue pulse",
+      "enabled": true,
+      "trigger": {
+        "type": "notification",
+        "app_name": "Microsoft Outlook",
+        "title_contains": null,
+        "body_contains": null
+      },
+      "action": {
+        "type": "pulse",
+        "color": "#0066FF",
+        "duration_sec": 5,
+        "pattern": null
+      }
+    }
+  ],
+  "default_effect": null,
+  "settings": {
+    "cooldown_sec": 5,
+    "max_concurrent_alerts": 1
+  }
+}
