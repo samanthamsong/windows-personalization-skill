@@ -21,12 +21,21 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 - Python 3.10+ (for per-lamp effects)
 - A [Dynamic Lighting](https://support.microsoft.com/en-us/windows/control-your-dynamic-lighting-devices-in-windows-8e9f9b1f-6844-4c5e-9873-d836e87fcb7f) compatible device
 
-### 1. Build the MCP server
+### 1. Build & register the MCP server
 
 ```powershell
 cd modules/dynamic-lighting
 dotnet build DynamicLightingMCP.sln
 ```
+
+Then register the app for package identity (required for LampArray API access):
+
+```powershell
+cd src/DynamicLightingMcp/Package
+.\Register-AmbientLighting.ps1
+```
+
+> ⚠️ **Important:** After registration, go to **Settings → Personalization → Dynamic Lighting → Background light control** and move **Dynamic Lighting MCP** to the **top of the priority list**. This ensures the MCP server takes precedence over other lighting apps.
 
 ### 2. Configure your MCP client
 
