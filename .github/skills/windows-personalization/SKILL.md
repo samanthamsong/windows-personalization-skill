@@ -65,6 +65,8 @@ When a user requests a complex or creative lighting effect that goes beyond the 
 2. Implement the `render_frame(t)` function that returns a color for each key based on time
 3. Run the script with `python <script_path>`
 
+**IMPORTANT:** Every effect MUST include the pause-file alert coordination block (shown below). This allows notification flashes to overlay on any running effect.
+
 **Script structure (follow this exactly):**
 
 ```python
@@ -114,10 +116,40 @@ def render_frame(t):
         colors[str(lamp['idx'])] = '#{:02x}{:02x}{:02x}'.format(*color)
     return colors
 
+# Alert flash coordination — DO NOT REMOVE
+PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rules', '.pause')
+
 # Animation loop at ~8fps
 frame = 0
 start = time.time()
 while True:
+    # Check for notification flash override
+    if os.path.exists(PAUSE_FILE):
+        try:
+            with open(PAUSE_FILE, 'r') as f:
+                alert_data = f.read().strip()
+            parts = alert_data.split('|')
+            flash_color = parts[0] if parts[0].startswith('#') else '#FF69B4'
+            flash_duration = float(parts[1]) if len(parts) > 1 else 3.0
+            all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
+            flash_start = time.time()
+            while time.time() - flash_start < flash_duration:
+                send({'jsonrpc':'2.0','id':100+frame,'method':'tools/call','params':{
+                    'name':'set_per_lamp_colors',
+                    'arguments':{'lamp_colors': json.dumps(all_flash)}
+                }})
+                recv()
+                frame += 1
+                time.sleep(0.125)
+        except Exception as e:
+            print(f"Alert flash error: {e}")
+        finally:
+            try:
+                os.remove(PAUSE_FILE)
+            except Exception:
+                pass
+        continue
+
     t = time.time() - start
     colors = render_frame(t)
     send({'jsonrpc':'2.0','id':100+frame,'method':'tools/call','params':{'name':'set_per_lamp_colors','arguments':{'lamp_colors': json.dumps(colors)}}})
