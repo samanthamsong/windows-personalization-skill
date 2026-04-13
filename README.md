@@ -65,10 +65,7 @@ Per-lamp Python scripts that create pixel-level animations on your keyboard.
 | [Rainbow](modules/dynamic-lighting/effects/rainbow.py) | Per-lamp rainbow gradient |
 | [Star Wars Lightsaber](modules/dynamic-lighting/effects/star-wars-lightsaber.py) | Lightsaber ignition effect |
 | [Hello Kitty](modules/dynamic-lighting/effects/hello-kitty.py) | Hello Kitty themed colors |
-| [Gemini](modules/dynamic-lighting/effects/gemini.py) | Gemini-inspired dual-tone effect |
-| [Astrology](modules/dynamic-lighting/effects/astrology.py) | Zodiac constellation lighting |
-| [Hearts](modules/dynamic-lighting/effects/hearts.py) | Floating hearts animation |
-| [TSITP](modules/dynamic-lighting/effects/tsitp.py) | Summer-inspired palette |
+
 
 ## 🛠️ Create Your Own Effect
 
