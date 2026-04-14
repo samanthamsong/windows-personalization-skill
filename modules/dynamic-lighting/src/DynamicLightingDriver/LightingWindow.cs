@@ -69,6 +69,8 @@ public sealed class LightingWindow : IDisposable
     private Panel? _bottomPanel;
     private Panel? _titlePanel;
     private Label? _themeToggle;
+    private Label? _hideToggle;
+    private NotifyIcon? _trayIcon;
     private Thread? _uiThread;
     private readonly ManualResetEventSlim _ready = new();
     private volatile bool _disposed;
@@ -353,6 +355,11 @@ public sealed class LightingWindow : IDisposable
                 _themeToggle.ForeColor = textDim;
                 _themeToggle.BackColor = bgColor;
             }
+            if (_hideToggle is not null)
+            {
+                _hideToggle.ForeColor = textDim;
+                _hideToggle.BackColor = bgColor;
+            }
         });
     }
 
@@ -440,7 +447,27 @@ public sealed class LightingWindow : IDisposable
         };
         _themeToggle.Click += (s, e) => SetTheme(!_isLightMode);
 
+        _hideToggle = new Label
+        {
+            Text = "👁",
+            AutoSize = false,
+            Height = 28,
+            Width = 36,
+            Dock = DockStyle.Right,
+            TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+            Font = new System.Drawing.Font("Segoe UI", 12f),
+            ForeColor = textDim,
+            BackColor = bgColor,
+            Cursor = Cursors.Hand,
+        };
+        _hideToggle.Click += (s, e) =>
+        {
+            _form!.Opacity = 0;
+            _form.ShowInTaskbar = false;
+        };
+
         _titlePanel.Controls.Add(_titleLabel);
+        _titlePanel.Controls.Add(_hideToggle);
         _titlePanel.Controls.Add(_themeToggle);
 
         // Effect name — large and prominent
@@ -520,6 +547,19 @@ public sealed class LightingWindow : IDisposable
             ctrl.MouseUp += (s, e) => { dragging = false; };
         }
 
+        // System tray icon (always visible for discoverability)
+        _trayIcon = new NotifyIcon
+        {
+            Text = "Dynamic Lighting",
+            Icon = System.Drawing.SystemIcons.Application,
+            Visible = true,
+        };
+        _trayIcon.Click += (s, e) =>
+        {
+            _form!.Opacity = 1;
+            _form.ShowInTaskbar = true;
+        };
+
         _form.FormClosing += (s, e) =>
         {
             if (!_disposed)
@@ -541,6 +581,11 @@ public sealed class LightingWindow : IDisposable
             _form.BeginInvoke(() =>
             {
                 StopRetryTimer();
+                if (_trayIcon is not null)
+                {
+                    _trayIcon.Visible = false;
+                    _trayIcon.Dispose();
+                }
                 _form.Close();
                 Application.ExitThread();
             });
