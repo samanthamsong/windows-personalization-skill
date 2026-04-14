@@ -177,6 +177,17 @@ def cmd_run_effect(args):
         print(f"\nDetached. Effect still running (PID {p.pid}). Use 'lighting.py stop' to end it.")
 
 
+def cmd_set_theme(args):
+    proc = launch_driver()
+    try:
+        wait_ready(proc)
+        send(proc, f'SET_THEME {args.mode}')
+        resp = recv(proc)
+        print_response(resp)
+    finally:
+        proc.terminate()
+
+
 def cmd_stop(args):
     """Find and kill Python processes running effect scripts."""
     import ctypes
@@ -257,6 +268,11 @@ def main():
     # stop
     p_stop = sub.add_parser('stop', help='Stop running effect processes')
     p_stop.set_defaults(func=cmd_stop)
+
+    # set-theme
+    p_theme = sub.add_parser('set-theme', help='Switch the driver window between light and dark mode')
+    p_theme.add_argument('mode', choices=['light', 'dark'], help='Theme mode')
+    p_theme.set_defaults(func=cmd_set_theme)
 
     # diagnose
     p_diag = sub.add_parser('diagnose', help='Run device diagnostics')

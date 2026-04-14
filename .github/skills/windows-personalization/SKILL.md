@@ -28,6 +28,7 @@ Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, 
 | `python modules/dynamic-lighting/lighting.py list-effects` | List available effect scripts |
 | `python modules/dynamic-lighting/lighting.py run-effect <name>` | Run a named effect (e.g. koi-fish) |
 | `python modules/dynamic-lighting/lighting.py stop` | Stop running effects |
+| `python modules/dynamic-lighting/lighting.py set-theme <light\|dark>` | Switch the driver window between light and dark mode |
 | `python modules/dynamic-lighting/lighting.py diagnose` | Run device diagnostics |
 
 **Example Prompt Mappings:**
@@ -40,6 +41,8 @@ Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, 
 | "Ocean waves on my keyboard" | Generate an ocean wave effect script |
 | "Rainbow wave" | `python modules/dynamic-lighting/lighting.py run-effect rainbow` |
 | "Stop the lights" | `python modules/dynamic-lighting/lighting.py stop` |
+| "Switch to light mode" | `python modules/dynamic-lighting/lighting.py set-theme light` |
+| "Use dark mode" | `python modules/dynamic-lighting/lighting.py set-theme dark` |
 | "What devices do I have?" | `python modules/dynamic-lighting/lighting.py list-devices` |
 | "What effects are available?" | `python modules/dynamic-lighting/lighting.py list-effects` |
 

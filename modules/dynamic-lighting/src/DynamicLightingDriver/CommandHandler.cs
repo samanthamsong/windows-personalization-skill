@@ -54,6 +54,7 @@ public sealed class CommandHandler
                 "SET_ALL" => await HandleSetAll(args),
                 "SET_LAMPS" => await HandleSetLamps(args),
                 "SET_EFFECT_NAME" => HandleSetEffectName(args),
+                "SET_THEME" => HandleSetTheme(args),
                 "LIST_DEVICES" => await HandleListDevices(),
                 "GET_LAYOUT" => await HandleGetLayout(),
                 "DIAGNOSE" => await HandleDiagnose(),
@@ -485,6 +486,15 @@ public sealed class CommandHandler
         if (_currentEffectName != null)
             _window.UpdateStatus($"✨ {_currentEffectName}");
         return "OK";
+    }
+
+    private string HandleSetTheme(string args)
+    {
+        var theme = args.Trim().ToLowerInvariant();
+        if (theme is not ("light" or "dark"))
+            return "ERROR Expected 'light' or 'dark'";
+        _window.SetTheme(theme == "light");
+        return $"OK {theme}";
     }
 
     // -----------------------------------------------------------------------

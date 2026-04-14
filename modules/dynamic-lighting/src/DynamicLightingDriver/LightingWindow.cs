@@ -64,10 +64,15 @@ public sealed class LightingWindow : IDisposable
     private Label? _statusLabel;
     private Label? _effectLabel;
     private Label? _detailLabel;
+    private Label? _titleLabel;
     private Panel? _accentBar;
+    private Panel? _bottomPanel;
+    private Panel? _titlePanel;
+    private Label? _themeToggle;
     private Thread? _uiThread;
     private readonly ManualResetEventSlim _ready = new();
     private volatile bool _disposed;
+    private bool _isLightMode;
     private System.Windows.Forms.Timer? _retryTimer;
     private int _retryCount;
     private volatile bool _holdForeground;
@@ -310,6 +315,47 @@ public sealed class LightingWindow : IDisposable
         });
     }
 
+    /// <summary>
+    /// Switches the companion window between light and dark themes.
+    /// </summary>
+    public void SetTheme(bool light)
+    {
+        if (_form is null || _form.IsDisposed) return;
+        _form.BeginInvoke(() =>
+        {
+            _isLightMode = light;
+
+            var bgColor = light
+                ? System.Drawing.Color.FromArgb(245, 245, 248)
+                : System.Drawing.Color.FromArgb(24, 24, 28);
+            var textPrimary = light
+                ? System.Drawing.Color.FromArgb(30, 30, 35)
+                : System.Drawing.Color.FromArgb(240, 240, 245);
+            var textSecondary = light
+                ? System.Drawing.Color.FromArgb(90, 90, 100)
+                : System.Drawing.Color.FromArgb(160, 160, 170);
+            var textDim = light
+                ? System.Drawing.Color.FromArgb(130, 130, 140)
+                : System.Drawing.Color.FromArgb(100, 100, 110);
+            var statusGreen = System.Drawing.Color.FromArgb(80, 200, 120);
+
+            _form.BackColor = bgColor;
+            if (_accentBar is not null) _accentBar.BackColor = System.Drawing.Color.FromArgb(120, 90, 220);
+            if (_titleLabel is not null) { _titleLabel.ForeColor = textDim; _titleLabel.BackColor = bgColor; }
+            if (_titlePanel is not null) _titlePanel.BackColor = bgColor;
+            if (_effectLabel is not null) { _effectLabel.ForeColor = textPrimary; _effectLabel.BackColor = bgColor; }
+            if (_detailLabel is not null) { _detailLabel.ForeColor = textSecondary; _detailLabel.BackColor = bgColor; }
+            if (_bottomPanel is not null) _bottomPanel.BackColor = bgColor;
+            if (_statusLabel is not null) { _statusLabel.ForeColor = statusGreen; _statusLabel.BackColor = bgColor; }
+            if (_themeToggle is not null)
+            {
+                _themeToggle.Text = light ? "🌙" : "☀️";
+                _themeToggle.ForeColor = textDim;
+                _themeToggle.BackColor = bgColor;
+            }
+        });
+    }
+
     private void RunUIThread()
     {
         Application.EnableVisualStyles();
@@ -357,19 +403,45 @@ public sealed class LightingWindow : IDisposable
             BackColor = accentColor,
         };
 
-        // Title row
-        var titleLabel = new Label
+        // Title row with theme toggle
+        _titlePanel = new Panel
+        {
+            Height = 28,
+            Dock = DockStyle.Top,
+            BackColor = bgColor,
+        };
+
+        _titleLabel = new Label
         {
             Text = "⚡ Dynamic Lighting",
             AutoSize = false,
             Height = 28,
-            Dock = DockStyle.Top,
+            Dock = DockStyle.Left,
+            Width = 280,
             TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
             Font = new System.Drawing.Font("Segoe UI", 9f, System.Drawing.FontStyle.Regular),
             ForeColor = textDim,
             BackColor = bgColor,
             Padding = new Padding(16, 4, 0, 0),
         };
+
+        _themeToggle = new Label
+        {
+            Text = "☀️",
+            AutoSize = false,
+            Height = 28,
+            Width = 36,
+            Dock = DockStyle.Right,
+            TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+            Font = new System.Drawing.Font("Segoe UI", 12f),
+            ForeColor = textDim,
+            BackColor = bgColor,
+            Cursor = Cursors.Hand,
+        };
+        _themeToggle.Click += (s, e) => SetTheme(!_isLightMode);
+
+        _titlePanel.Controls.Add(_titleLabel);
+        _titlePanel.Controls.Add(_themeToggle);
 
         // Effect name — large and prominent
         _effectLabel = new Label
@@ -400,7 +472,7 @@ public sealed class LightingWindow : IDisposable
         };
 
         // Bottom bar with status dot
-        var bottomPanel = new Panel
+        _bottomPanel = new Panel
         {
             Height = 32,
             Dock = DockStyle.Top,
@@ -417,16 +489,16 @@ public sealed class LightingWindow : IDisposable
             BackColor = bgColor,
             Location = new System.Drawing.Point(16, 8),
         };
-        bottomPanel.Controls.Add(_statusLabel);
+        _bottomPanel.Controls.Add(_statusLabel);
 
         // Hidden status label for backwards compatibility (UpdateStatus still sets it)
         // The visible UI is driven by _effectLabel and _detailLabel
 
         // Add controls in reverse dock order (top = last added docks first)
-        _form.Controls.Add(bottomPanel);
+        _form.Controls.Add(_bottomPanel);
         _form.Controls.Add(_detailLabel);
         _form.Controls.Add(_effectLabel);
-        _form.Controls.Add(titleLabel);
+        _form.Controls.Add(_titlePanel);
         _form.Controls.Add(_accentBar);
 
         // Draggable window (since FormBorderStyle.None)
