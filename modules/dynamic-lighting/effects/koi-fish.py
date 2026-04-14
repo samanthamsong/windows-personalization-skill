@@ -18,6 +18,10 @@ def recv():
 ready = recv()
 assert ready == 'READY', f'Driver not ready: {ready}'
 
+# Tell the driver which effect is running
+send("SET_EFFECT_NAME Koi Fish Pond")
+recv()
+
 # === KOI FISH POND EFFECT ===
 # 87-key TKL layout
 rows = [15, 15, 15, 14, 13, 8, 7]

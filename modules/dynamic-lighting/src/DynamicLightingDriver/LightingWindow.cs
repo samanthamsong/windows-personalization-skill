@@ -1,3 +1,4 @@
+using System.Drawing.Drawing2D;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using Windows.Devices.Lights;
@@ -61,6 +62,9 @@ public sealed class LightingWindow : IDisposable
     private const uint MOUSEEVENTF_LEFTUP = 0x0004;
     private Form? _form;
     private Label? _statusLabel;
+    private Label? _effectLabel;
+    private Label? _detailLabel;
+    private Panel? _accentBar;
     private Thread? _uiThread;
     private readonly ManualResetEventSlim _ready = new();
     private volatile bool _disposed;
@@ -270,45 +274,182 @@ public sealed class LightingWindow : IDisposable
 
     public void UpdateStatus(string text)
     {
-        if (_statusLabel is null || _form is null || _form.IsDisposed) return;
-        _form.BeginInvoke(() => _statusLabel.Text = text);
+        if (_form is null || _form.IsDisposed) return;
+        _form.BeginInvoke(() =>
+        {
+            // Parse effect name from status text if present
+            // Patterns: "🔴 Solid ...", "🎨 Custom ...", "🌈 pattern — ..."
+            string effectName = "";
+            string detail = text;
+
+            if (text.Contains("—"))
+            {
+                var parts = text.Split('—', 2);
+                effectName = parts[0].Trim();
+                detail = parts[1].Trim();
+            }
+            else if (text.StartsWith("🔴") || text.StartsWith("🎨") || text.StartsWith("🌈"))
+            {
+                effectName = text;
+                detail = "";
+            }
+
+            if (_effectLabel is not null)
+            {
+                _effectLabel.Text = effectName != "" ? effectName : text;
+            }
+            if (_detailLabel is not null)
+            {
+                _detailLabel.Text = detail;
+                _detailLabel.Visible = detail != "";
+            }
+            if (_statusLabel is not null)
+            {
+                _statusLabel.Text = text;
+            }
+        });
     }
 
     private void RunUIThread()
     {
         Application.EnableVisualStyles();
         Application.SetCompatibleTextRenderingDefault(false);
+        Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+
+        var bgColor = System.Drawing.Color.FromArgb(24, 24, 28);
+        var surfaceColor = System.Drawing.Color.FromArgb(32, 32, 38);
+        var textPrimary = System.Drawing.Color.FromArgb(240, 240, 245);
+        var textSecondary = System.Drawing.Color.FromArgb(160, 160, 170);
+        var textDim = System.Drawing.Color.FromArgb(100, 100, 110);
+        var accentColor = System.Drawing.Color.FromArgb(120, 90, 220);
 
         _form = new ForegroundForm
         {
-            Text = "🌈 Dynamic Lighting Driver",
-            Width = 380,
-            Height = 140,
+            Text = "Dynamic Lighting",
+            Width = 360,
+            Height = 180,
             StartPosition = FormStartPosition.Manual,
             Location = new System.Drawing.Point(
-                Screen.PrimaryScreen!.WorkingArea.Right - 400,
-                Screen.PrimaryScreen!.WorkingArea.Bottom - 160),
-            FormBorderStyle = FormBorderStyle.FixedToolWindow,
+                Screen.PrimaryScreen!.WorkingArea.Right - 380,
+                Screen.PrimaryScreen!.WorkingArea.Bottom - 200),
+            FormBorderStyle = FormBorderStyle.None,
             ShowInTaskbar = true,
             TopMost = true,
+            BackColor = bgColor,
+            Padding = new Padding(0),
+        };
+
+        // Rounded corners via Region
+        var radius = 16;
+        var path = new System.Drawing.Drawing2D.GraphicsPath();
+        path.AddArc(0, 0, radius, radius, 180, 90);
+        path.AddArc(_form.Width - radius, 0, radius, radius, 270, 90);
+        path.AddArc(_form.Width - radius, _form.Height - radius, radius, radius, 0, 90);
+        path.AddArc(0, _form.Height - radius, radius, radius, 90, 90);
+        path.CloseFigure();
+        _form.Region = new System.Drawing.Region(path);
+
+        // Top accent bar — thin colored line
+        _accentBar = new Panel
+        {
+            Height = 3,
+            Dock = DockStyle.Top,
+            BackColor = accentColor,
+        };
+
+        // Title row
+        var titleLabel = new Label
+        {
+            Text = "⚡ Dynamic Lighting",
+            AutoSize = false,
+            Height = 28,
+            Dock = DockStyle.Top,
+            TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+            Font = new System.Drawing.Font("Segoe UI", 9f, System.Drawing.FontStyle.Regular),
+            ForeColor = textDim,
+            BackColor = bgColor,
+            Padding = new Padding(16, 4, 0, 0),
+        };
+
+        // Effect name — large and prominent
+        _effectLabel = new Label
+        {
+            Text = "Ready",
+            AutoSize = false,
+            Height = 48,
+            Dock = DockStyle.Top,
+            TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+            Font = new System.Drawing.Font("Segoe UI Semibold", 18f, System.Drawing.FontStyle.Bold),
+            ForeColor = textPrimary,
+            BackColor = bgColor,
+            Padding = new Padding(16, 0, 0, 0),
+        };
+
+        // Detail / subtitle
+        _detailLabel = new Label
+        {
+            Text = "Waiting for lighting commands...",
+            AutoSize = false,
+            Height = 24,
+            Dock = DockStyle.Top,
+            TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+            Font = new System.Drawing.Font("Segoe UI", 10f),
+            ForeColor = textSecondary,
+            BackColor = bgColor,
+            Padding = new Padding(16, 0, 0, 0),
+        };
+
+        // Bottom bar with status dot
+        var bottomPanel = new Panel
+        {
+            Height = 32,
+            Dock = DockStyle.Top,
+            BackColor = bgColor,
+            Padding = new Padding(16, 8, 16, 0),
         };
 
         _statusLabel = new Label
         {
-            Text = "Driver ready. Waiting for lighting commands...",
-            Dock = DockStyle.Fill,
-            TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
-            Font = new System.Drawing.Font("Segoe UI", 11),
-            ForeColor = System.Drawing.Color.FromArgb(220, 220, 220),
-            BackColor = System.Drawing.Color.FromArgb(30, 30, 30),
+            Text = "● Connected",
+            AutoSize = true,
+            Font = new System.Drawing.Font("Segoe UI", 8.5f),
+            ForeColor = System.Drawing.Color.FromArgb(80, 200, 120),
+            BackColor = bgColor,
+            Location = new System.Drawing.Point(16, 8),
         };
+        bottomPanel.Controls.Add(_statusLabel);
 
-        _form.Controls.Add(_statusLabel);
-        _form.BackColor = System.Drawing.Color.FromArgb(30, 30, 30);
+        // Hidden status label for backwards compatibility (UpdateStatus still sets it)
+        // The visible UI is driven by _effectLabel and _detailLabel
+
+        // Add controls in reverse dock order (top = last added docks first)
+        _form.Controls.Add(bottomPanel);
+        _form.Controls.Add(_detailLabel);
+        _form.Controls.Add(_effectLabel);
+        _form.Controls.Add(titleLabel);
+        _form.Controls.Add(_accentBar);
+
+        // Draggable window (since FormBorderStyle.None)
+        bool dragging = false;
+        System.Drawing.Point dragOffset = default;
+        foreach (Control ctrl in _form.Controls)
+        {
+            ctrl.MouseDown += (s, e) =>
+            {
+                if (e.Button == MouseButtons.Left) { dragging = true; dragOffset = e.Location; }
+            };
+            ctrl.MouseMove += (s, e) =>
+            {
+                if (dragging)
+                    _form.Location = new System.Drawing.Point(
+                        _form.Location.X + e.X - dragOffset.X,
+                        _form.Location.Y + e.Y - dragOffset.Y);
+            };
+            ctrl.MouseUp += (s, e) => { dragging = false; };
+        }
 
         _form.FormClosing += (s, e) =>
         {
-            // Minimize instead of close so the driver keeps running
             if (!_disposed)
             {
                 e.Cancel = true;

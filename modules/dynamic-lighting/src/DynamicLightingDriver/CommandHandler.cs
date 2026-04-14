@@ -32,6 +32,7 @@ public sealed class CommandHandler
     private readonly LampArrayService _lampArrayService;
     private readonly EffectEngine _effectEngine;
     private readonly LightingWindow _window;
+    private string? _currentEffectName;
 
     public CommandHandler(LampArrayService lampArrayService, EffectEngine effectEngine, LightingWindow window)
     {
@@ -52,6 +53,7 @@ public sealed class CommandHandler
             {
                 "SET_ALL" => await HandleSetAll(args),
                 "SET_LAMPS" => await HandleSetLamps(args),
+                "SET_EFFECT_NAME" => HandleSetEffectName(args),
                 "LIST_DEVICES" => await HandleListDevices(),
                 "GET_LAYOUT" => await HandleGetLayout(),
                 "DIAGNOSE" => await HandleDiagnose(),
@@ -157,7 +159,9 @@ public sealed class CommandHandler
         await EnsureDeviceAvailable(device);
         _effectEngine.ApplyPerLampColors(device, lampColorMap, defaultParsed);
 
-        _window.UpdateStatus($"🎨 Custom {lampColorMap.Count}/{device.LampCount} lamps");
+        _window.UpdateStatus(_currentEffectName != null
+            ? $"✨ {_currentEffectName}"
+            : $"🎨 Custom {lampColorMap.Count}/{device.LampCount} lamps");
         return $"OK {lampColorMap.Count}";
     }
 
@@ -471,7 +475,16 @@ public sealed class CommandHandler
     private string HandleStopEffect()
     {
         _effectEngine.StopAllEffects();
+        _currentEffectName = null;
         return "OK Stopped";
+    }
+
+    private string HandleSetEffectName(string name)
+    {
+        _currentEffectName = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+        if (_currentEffectName != null)
+            _window.UpdateStatus($"✨ {_currentEffectName}");
+        return "OK";
     }
 
     // -----------------------------------------------------------------------
