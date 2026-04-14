@@ -16,6 +16,23 @@
         "duration_sec": 3,
         "pattern": null
       }
+    },
+    {
+      "id": "red-notification-flash",
+      "name": "Red notification flash",
+      "enabled": true,
+      "trigger": {
+        "type": "notification",
+        "app_name": "*",
+        "title_contains": null,
+        "body_contains": null
+      },
+      "action": {
+        "type": "flash",
+        "color": "#FF0000",
+        "duration_sec": 3,
+        "pattern": null
+      }
     }
   ],
   "default_effect": null,
