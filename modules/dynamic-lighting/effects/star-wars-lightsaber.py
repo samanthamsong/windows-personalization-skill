@@ -18,7 +18,8 @@ assert ready == 'READY', f'Driver not ready: {ready}'
 
 # 3. Apply Star Wars lightsaber duel effect
 #    Sith red vs Jedi blue — a dramatic wave sweeping across the keyboard
-send('CREATE_EFFECT wave base_color=#CC0000 accent_color=#0044FF speed=0.8 density=0.5 direction=left_to_right')
+effect_cmd = 'CREATE_EFFECT wave base_color=#CC0000 accent_color=#0044FF speed=0.8 density=0.5 direction=left_to_right'
+send(effect_cmd)
 resp = recv()
 print('⚔️  Star Wars lightsaber duel activated!', flush=True)
 print('Effect response:', resp, flush=True)
@@ -65,6 +66,9 @@ try:
                     os.remove(PAUSE_FILE)
                 except Exception:
                     pass
+            # Resume the effect after flash
+            send(effect_cmd)
+            recv()
             continue
         if proc.poll() is not None:
             break

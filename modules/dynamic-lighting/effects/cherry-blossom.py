@@ -96,6 +96,9 @@ try:
                     os.remove(PAUSE_FILE)
                 except Exception:
                     pass
+            # Resume the effect after flash
+            send(f'CREATE_EFFECT layered layers={layers}')
+            recv()
             continue
         if proc.poll() is not None:
             break

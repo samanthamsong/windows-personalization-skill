@@ -18,7 +18,8 @@ assert ready == 'READY', f'Driver not ready: {ready}'
 
 # 3. Apply a rainbow gradient effect - each lamp gets a different hue
 #    based on its physical position across the keyboard
-send('CREATE_EFFECT wave base_color=#FF0000 accent_color=#0000FF speed=0.0 density=1.0 direction=left_to_right')
+effect_cmd = 'CREATE_EFFECT wave base_color=#FF0000 accent_color=#0000FF speed=0.0 density=1.0 direction=left_to_right'
+send(effect_cmd)
 resp = recv()
 print('🌈 Rainbow per-lamp effect activated!', flush=True)
 print('Effect response:', resp, flush=True)
@@ -65,6 +66,9 @@ try:
                     os.remove(PAUSE_FILE)
                 except Exception:
                     pass
+            # Resume the effect after flash
+            send(effect_cmd)
+            recv()
             continue
         if proc.poll() is not None:
             break

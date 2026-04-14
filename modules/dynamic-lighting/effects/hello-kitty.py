@@ -18,7 +18,8 @@ assert ready == 'READY', f'Driver not ready: {ready}'
 
 # 3. Apply Hello Kitty effect
 #    Soft pink base with white twinkle accents — cute and dreamy
-send('CREATE_EFFECT twinkle base_color=#FF69B4 accent_color=#FFFFFF speed=0.3 density=0.25')
+effect_cmd = 'CREATE_EFFECT twinkle base_color=#FF69B4 accent_color=#FFFFFF speed=0.3 density=0.25'
+send(effect_cmd)
 resp = recv()
 print('🎀 Hello Kitty effect activated!', flush=True)
 print('Effect response:', resp, flush=True)
@@ -65,6 +66,9 @@ try:
                     os.remove(PAUSE_FILE)
                 except Exception:
                     pass
+            # Resume the effect after flash
+            send(effect_cmd)
+            recv()
             continue
         if proc.poll() is not None:
             break

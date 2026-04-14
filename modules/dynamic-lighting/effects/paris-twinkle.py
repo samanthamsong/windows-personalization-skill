@@ -17,7 +17,8 @@ ready = recv()
 assert ready == 'READY', f'Driver not ready: {ready}'
 
 # 3. Apply Paris night twinkle effect
-send('CREATE_EFFECT twinkle base_color=#0D1B3E accent_color=#FFD180 speed=0.5 density=0.35')
+effect_cmd = 'CREATE_EFFECT twinkle base_color=#0D1B3E accent_color=#FFD180 speed=0.5 density=0.35'
+send(effect_cmd)
 resp = recv()
 print('Effect applied:', resp, flush=True)
 print(f'Driver PID: {proc.pid} — keeping alive...', flush=True)
@@ -63,6 +64,9 @@ try:
                     os.remove(PAUSE_FILE)
                 except Exception:
                     pass
+            # Resume the effect after flash
+            send(effect_cmd)
+            recv()
             continue
         if proc.poll() is not None:
             break

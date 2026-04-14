@@ -25,7 +25,8 @@ layout_json = resp[3:]  # strip "OK " prefix
 print(layout_json[:500])
 
 # Apply shooting star effect
-send("CREATE_EFFECT shooting_star #050510 #88CCFF 1.0 shooting stars across keyboard")
+effect_cmd = "CREATE_EFFECT shooting_star #050510 #88CCFF 1.0 shooting stars across keyboard"
+send(effect_cmd)
 resp = recv()
 print("\n" + resp)
 
@@ -204,6 +205,9 @@ try:
                     os.remove(PAUSE_FILE)
                 except Exception:
                     pass
+            # Resume the effect after flash
+            send(effect_cmd)
+            recv()
             continue
         if proc.poll() is not None:
             break
