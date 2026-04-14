@@ -47,7 +47,7 @@ layers = json.dumps([
         "density": 0.3,
         "z_index": 2
     }
-])
+], separators=(',', ':'))
 
 send(f'CREATE_EFFECT layered layers={layers}')
 resp = recv()

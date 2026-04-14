@@ -24,7 +24,7 @@ layers = json.dumps([
     {"pattern": "wave", "base_color": "#2E5B52", "accent_color": "#7BA899", "speed": 0.2, "density": 1.0, "direction": "left_to_right", "z_index": 0},
     {"pattern": "breathe", "base_color": "#5B7065", "accent_color": "#C9A0C4", "speed": 0.15, "density": 0.5, "direction": "center_out", "z_index": 1},
     {"pattern": "twinkle", "base_color": "#5B7065", "accent_color": "#F5DEB3", "speed": 0.4, "density": 0.08, "z_index": 2}
-])
+], separators=(',', ':'))
 
 send(f'CREATE_EFFECT layered layers={layers}')
 resp = recv()
