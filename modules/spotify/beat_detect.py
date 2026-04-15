@@ -32,6 +32,7 @@ class BeatDetector:
         self._beat_event = threading.Event()
         self._last_beat_time = 0.0
         self._beat_intensity = 0.0
+        self._current_peak = 0.0
 
         self._peak_history = []
         self._history_len = 50  # ~1 second at 50Hz polling
@@ -41,6 +42,12 @@ class BeatDetector:
         """Last detected beat intensity (0.0–1.0)."""
         with self._lock:
             return self._beat_intensity
+
+    @property
+    def current_peak(self):
+        """Current audio peak level (0.0–1.0), updated at 50Hz."""
+        with self._lock:
+            return self._current_peak
 
     def wait_for_beat(self, timeout=0.5):
         """Block until next beat or timeout. Returns True if beat detected."""
@@ -73,6 +80,7 @@ class BeatDetector:
                 peak = meter.GetPeakValue()
 
                 with self._lock:
+                    self._current_peak = peak
                     self._peak_history.append(peak)
                     if len(self._peak_history) > self._history_len:
                         self._peak_history.pop(0)
