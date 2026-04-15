@@ -1,8 +1,8 @@
 # 🎨 Windows Personalization Skill
 
-Personalize your Windows PC with natural language. Tell an AI assistant *"make everything pink!"* and watch it transform your RGB lighting, themes, wallpaper, and more.
+Personalize your Windows PC with natural language. Tell an AI assistant *"make everything pink!"* and watch it transform your RGB lighting, window layouts, desktop vibes, and more.
 
-This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-skills) — a set of instructions and tools that AI agents can invoke automatically.
+This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-skills) — a set of instructions and tools that AI agents can invoke automatically. Pairs with the [Lantern MCP server](https://github.com/andersonch/Lantern) for deep Windows system access.
 
 ## ✨ What's Inside
 
@@ -10,7 +10,10 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 |--------|--------|-------------|
 | [🔆 Dynamic Lighting](modules/dynamic-lighting/) | ✅ Available | Control RGB devices via CLI + per-lamp Python effects |
 | [🎵 Spotify](modules/spotify/) | ✅ Available | Sync keyboard lighting to Spotify — album colors + mood |
-| [🪟 Windowing](modules/windowing/) | 🔜 Planned | Create, save, and restore window layouts |
+| [🪟 Windowing](modules/windowing/) | 🔜 Planned | Save, restore, and create aesthetic window layouts |
+| [🌈 Ambient Scenes](modules/scenes/) | 🔜 Planned | Cohesive vibes across lighting, accents, and layout |
+| [✨ Window Effects](modules/window-effects/) | 🔜 Planned | Glow, shadows, and animations on windows |
+| [🧩 Desktop Widgets](modules/widgets/) | 🔜 Planned | Floating clocks, now-playing, system stats |
 
 ## 🚀 Quick Start
 
@@ -241,7 +244,52 @@ This skill is the first step toward full Windows personalization via natural lan
 - ✅ **V2:** Alert-based lighting (flash keyboard on Windows notifications)
 - ✅ **V2.1:** Driver UI (theme toggle, hide button, system tray, effect display)
 - ✅ **V2.2:** Spotify integration (album colors, mood mapping, beat-sync)
-- 🔜 **V3:** Windowing (save/restore window layouts via natural language)
+- 🔜 **V3:** Multi-peripheral sync (mouse, headset, mousepad match keyboard effects)
+- 🔜 **V4:** Windowing (save/restore/create aesthetic window layouts)
+- 🔜 **V5:** Ambient Scenes (combine lighting + accents + layout into cohesive vibes)
+- 🔜 **V6:** Window Effects & Desktop Widgets
+
+### 🔆 Multi-Peripheral Sync (planned)
+
+The Dynamic Lighting driver already discovers all DL-compatible devices (keyboards, mice, headsets, mousepads). Planned enhancements:
+
+- **Device-aware rendering** — adapt effects to each device's geometry (a mouse has ~2-5 zones vs. 87 keys)
+- **Sync all mode** — push matching frames to every connected device simultaneously
+- **Unified vibe** — koi fish swim across your keyboard while your mouse glows the pond color and your headset pulses with the ripples
+
+### 🪟 Windowing (planned)
+
+A layout library + context layer that works with [Lantern's](https://github.com/andersonch/Lantern) `prentice-windows-layout` tools:
+
+- **Pre-baked layouts** — "Dev Setup" (editor + terminal + browser), "Meeting Mode" (Teams + notes), "Content Creation" (timeline + preview + assets)
+- **Aesthetic arrangements** — "cascade my windows like cards," "golden ratio tiling," "messy desk" (slightly rotated, overlapping)
+- **Save custom layouts** — "save this as my coding layout" with friendly names
+- **Context-aware restore** — adapts to monitor count and resolution automatically
+
+### 🌈 Ambient Scenes (planned)
+
+Combine multiple personalization modules into one cohesive vibe — like smart home scenes but for your PC:
+
+- **"Sunset"** → warm orange RGB, amber accent color, warm-toned layout
+- **"Cyberpunk"** → neon pink/cyan lighting, dark theme, matching window glow
+- **"Lo-fi"** → dim purple lighting, muted palette, calm everything
+- **"Spotify Mood"** → scene shifts automatically based on what you're listening to
+
+### ✨ Window Effects (planned)
+
+Creative window modifications inspired by tools like Rainmeter and Windhawk:
+
+- Neon glow on active window, custom shadows, translucent titlebars
+- Animated minimize/restore transitions
+- Uses Lantern's `foreground_window` tracking to apply effects to the focused window
+
+### 🧩 Desktop Widgets (planned)
+
+Floating desktop toys and info panels:
+
+- Now-playing widget (syncs with Spotify module), floating clock, system stats
+- Agent-driven — "put a cute clock in the corner"
+- Small always-on-top windows spawned by the skill
 
 ## 🛠️ Developer Setup
 
