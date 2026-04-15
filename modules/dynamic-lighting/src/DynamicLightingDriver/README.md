@@ -6,10 +6,12 @@ DynamicLightingDriver is a Windows stdin/stdout driver that lets scripts and AI 
 
 - Windows 11 22H2 or newer
 - .NET 9 SDK
+- WinAppCLI (`winget install Microsoft.WinAppCli`) — for MSIX packaging and certificate management
 - A Dynamic Lighting compatible device (keyboard, mouse, mousepad, light strip, chassis, etc.)
 - Dynamic Lighting enabled in Windows Settings:
   - Settings > Personalization > Dynamic Lighting
   - Turn on "Use Dynamic Lighting on my devices"
+- Developer Mode enabled (Settings > System > For developers)
 
 ## Build And Run
 

@@ -6,6 +6,8 @@ A stdin/stdout driver that lets scripts and AI assistants control Windows Dynami
 
 - Windows 11 22H2 or newer
 - .NET 9 SDK
+- Python 3.10+ (for per-lamp effects)
+- WinAppCLI (`winget install Microsoft.WinAppCli`) — used for MSIX packaging and signing
 - A Dynamic Lighting compatible device (keyboard, mouse, mousepad, light strip, etc.)
 - Dynamic Lighting enabled: Settings > Personalization > Dynamic Lighting > "Use Dynamic Lighting on my devices"
 
@@ -18,12 +20,18 @@ dotnet build DynamicLightingDriver.sln
 
 ## Registration
 
-To enable background (ambient) lighting access, run the registration script once from an elevated prompt:
+To enable background (ambient) lighting access, run the registration script. First run requires an elevated prompt for certificate trust:
 
 ```powershell
 cd modules/dynamic-lighting/src/DynamicLightingDriver/Package
 .\Register-AmbientLighting.ps1
 ```
+
+The script uses WinAppCLI to:
+- Generate a dev certificate (`winapp cert generate`) on first run
+- Create and sign a `.msix` package (`winapp package`)
+- Auto-detect CPU architecture (x64/arm64) and patch the manifest
+- Install via `Add-AppxPackage` with external content
 
 ## Driver Protocol
 

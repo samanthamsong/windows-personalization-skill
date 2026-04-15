@@ -47,7 +47,7 @@ dotnet build DynamicLightingDriver.sln
 python modules/dynamic-lighting/effects/koi-fish.py
 ```
 
-Requires: Windows 11 22H2+, .NET 9 SDK, Python 3.10+, Dynamic Lighting device.
+Requires: Windows 11 22H2+, .NET 9 SDK, Python 3.10+, WinAppCLI (`winget install Microsoft.WinAppCli`), Dynamic Lighting device.
 
 ## Code of Conduct
 
