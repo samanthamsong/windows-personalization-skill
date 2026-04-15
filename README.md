@@ -2,7 +2,7 @@
 
 Personalize your Windows PC with natural language. Tell an AI assistant *"make everything pink!"* and watch it transform your RGB lighting, window layouts, desktop vibes, and more.
 
-This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-skills) — a set of instructions and tools that AI agents can invoke automatically. Pairs with the [Lantern MCP server](https://github.com/andersonch/Lantern) for deep Windows system access.
+This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-skills) — a set of instructions and tools that AI agents can invoke automatically.
 
 ## ✨ What's Inside
 
@@ -254,7 +254,7 @@ The Dynamic Lighting driver already discovers all DL-compatible devices (keyboar
 
 ### 🪟 Windowing (planned)
 
-A layout library + context layer that works with [Lantern's](https://github.com/andersonch/Lantern) `prentice-windows-layout` tools:
+A layout library + context layer for managing window arrangements:
 
 - **Pre-baked layouts** — "Dev Setup" (editor + terminal + browser), "Meeting Mode" (Teams + notes), "Content Creation" (timeline + preview + assets)
 - **Aesthetic arrangements** — "cascade my windows like cards," "golden ratio tiling," "messy desk" (slightly rotated, overlapping)
