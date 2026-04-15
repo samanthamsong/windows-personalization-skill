@@ -9,6 +9,7 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 | Module | Status | Description |
 |--------|--------|-------------|
 | [🔆 Dynamic Lighting](modules/dynamic-lighting/) | ✅ Available | Control RGB devices via CLI + per-lamp Python effects |
+| [🎵 Spotify](modules/spotify/) | ✅ Available | Sync keyboard lighting to Spotify — album colors + mood |
 | [🎨 Themes](modules/themes/) | 🔜 Planned | Accent colors, dark/light mode, titlebars |
 | [🖼️ Wallpaper](modules/wallpaper/) | 🔜 Planned | Desktop wallpaper, lock screen, slideshows |
 | [🔊 Sounds](modules/sounds/) | 🔜 Planned | System sound schemes |

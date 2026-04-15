@@ -25,3 +25,5 @@ stderr.log
 node_modules/
 
 devcert.pfx
+.spotify-token
+.spotify-config

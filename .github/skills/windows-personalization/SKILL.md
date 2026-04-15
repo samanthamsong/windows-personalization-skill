@@ -191,6 +191,36 @@ Set up rules that trigger lighting effects when Windows notifications arrive.
 | "Remove the Teams rule" | `python modules/dynamic-lighting/alert-watcher.py remove <id>` |
 | "Start watching for notifications" | `powershell -ExecutionPolicy Bypass -File modules/dynamic-lighting/notification-watcher.ps1` |
 
+### 🎵 Spotify Integration (Available)
+Sync keyboard lighting to currently playing Spotify track — album art colors, mood-reactive effects.
+
+**Prerequisites:**
+- Spotify Premium account
+- Python packages: `pip install spotipy Pillow requests`
+- Spotify Developer App with Client ID (https://developer.spotify.com/dashboard)
+- Run `python modules/spotify/auth.py` once to authenticate
+
+**CLI Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `python modules/spotify/spotify-sync.py start` | Start music-reactive lighting (full takeover) |
+| `python modules/spotify/spotify-sync.py start --overlay` | Tint current effect with album colors |
+| `python modules/spotify/spotify-sync.py stop` | Stop Spotify sync |
+| `python modules/spotify/spotify-sync.py status` | Show current track, mood, and album colors |
+| `python modules/spotify/auth.py` | Authenticate with Spotify |
+| `python modules/spotify/auth.py status` | Check authentication status |
+
+**Example Prompt Mappings:**
+
+| User Says | Action |
+|-----------|--------|
+| "Sync my lights to Spotify" | `python modules/spotify/spotify-sync.py start` |
+| "Match my keyboard to my music" | `python modules/spotify/spotify-sync.py start` |
+| "Tint my effect with what I'm listening to" | `python modules/spotify/spotify-sync.py start --overlay` |
+| "What song is playing?" | `python modules/spotify/spotify-sync.py status` |
+| "Stop the music sync" | `python modules/spotify/spotify-sync.py stop` |
+
 ### 🎨 Themes (Planned)
 Change Windows accent color, dark/light mode, titlebar colors.
 - Future: PowerShell scripts in `modules/themes/`
@@ -208,6 +238,7 @@ Change system sound scheme.
 When the user's request involves:
 - **Lighting, RGB, keyboard colors, LED effects** → Use Dynamic Lighting CLI commands or generate effect scripts
 - **Alerts, notifications, "when I get", "flash when", "notify me"** → Use alert-watcher.py CLI commands
+- **Spotify, music, "sync to music", "what's playing", album colors** → Use Spotify module commands
 - **Theme, accent color, dark mode, light mode, titlebar** → Themes module (planned)
 - **Wallpaper, background, lock screen, desktop image** → Wallpaper module (planned)
 - **Sounds, notification sound, system audio** → Sounds module (planned)
