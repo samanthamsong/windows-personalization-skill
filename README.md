@@ -11,6 +11,7 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 | [🔆 Dynamic Lighting](modules/dynamic-lighting/) | ✅ Available | Control RGB devices via CLI + per-lamp Python effects |
 | [🎵 Spotify](modules/spotify/) | ✅ Available | Sync keyboard lighting to Spotify — album colors + mood |
 | [🎨 Themes](modules/themes/) | 🔜 Planned | Accent colors, dark/light mode, titlebars |
+| [🪟 Windowing](modules/windowing/) | 🔜 Planned | Create, save, and restore window layouts |
 | [🖼️ Wallpaper](modules/wallpaper/) | 🔜 Planned | Desktop wallpaper, lock screen, slideshows |
 | [🔊 Sounds](modules/sounds/) | 🔜 Planned | System sound schemes |
 
@@ -243,9 +244,9 @@ This skill is the first step toward full Windows personalization via natural lan
 - ✅ **V2:** Alert-based lighting (flash keyboard on Windows notifications)
 - ✅ **V2.1:** Driver UI (theme toggle, hide button, system tray, effect display)
 - ✅ **V2.2:** Spotify integration (album colors, mood mapping, beat-sync)
-- 🔜 **V3:** Themes (accent color, dark/light mode)
-- 🔜 **V4:** Wallpaper + Sounds
-- 🔮 **Future:** Multi-surface orchestration ("make my whole PC feel like the ocean")
+- 🔜 **V3:** Windowing (save/restore window layouts via natural language)
+- 🔜 **V4:** Themes (accent color, dark/light mode)
+- 🔜 **V5:** Wallpaper + Sounds
 
 ## 🛠️ Developer Setup
 

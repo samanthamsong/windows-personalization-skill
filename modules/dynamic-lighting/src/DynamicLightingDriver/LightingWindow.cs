@@ -543,6 +543,43 @@ public sealed class LightingWindow : IDisposable
         }
     }
 
+    private static System.Drawing.Icon CreatePaletteIcon()
+    {
+        // Draw a 16×16 artist palette icon for the system tray
+        var bmp = new System.Drawing.Bitmap(16, 16);
+        using (var g = System.Drawing.Graphics.FromImage(bmp))
+        {
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.Clear(System.Drawing.Color.Transparent);
+
+            // Palette body — oval shape
+            using var paletteBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(230, 220, 200));
+            using var outlinePen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(80, 70, 60), 1.2f);
+            g.FillEllipse(paletteBrush, 1, 2, 14, 12);
+            g.DrawEllipse(outlinePen, 1, 2, 14, 12);
+
+            // Thumb hole
+            using var holeBrush = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(60, 55, 50));
+            g.FillEllipse(holeBrush, 3, 8, 3, 3);
+
+            // Color dots
+            using var red = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(220, 60, 60));
+            using var blue = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(60, 100, 240));
+            using var green = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(60, 200, 80));
+            using var yellow = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(240, 200, 40));
+            using var purple = new System.Drawing.SolidBrush(System.Drawing.Color.FromArgb(160, 60, 220));
+
+            g.FillEllipse(red, 5, 3, 3, 3);
+            g.FillEllipse(blue, 9, 3, 3, 3);
+            g.FillEllipse(green, 11, 6, 3, 3);
+            g.FillEllipse(yellow, 8, 9, 3, 3);
+            g.FillEllipse(purple, 4, 7, 2.5f, 2.5f);
+        }
+
+        var handle = bmp.GetHicon();
+        return System.Drawing.Icon.FromHandle(handle);
+    }
+
     private void RunUIThread()
     {
         Application.EnableVisualStyles();
@@ -833,7 +870,7 @@ public sealed class LightingWindow : IDisposable
         _trayIcon = new NotifyIcon
         {
             Text = "Dynamic Lighting",
-            Icon = System.Drawing.SystemIcons.Application,
+            Icon = CreatePaletteIcon(),
             Visible = true,
         };
         _trayIcon.Click += (s, e) =>
