@@ -10,6 +10,7 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 |--------|--------|-------------|
 | [🔆 Dynamic Lighting](modules/dynamic-lighting/) | ✅ Available | Control RGB devices via CLI + per-lamp Python effects |
 | [🎵 Spotify](modules/spotify/) | ✅ Available | Sync keyboard lighting to Spotify — album colors + mood |
+| [🎨 Themes](modules/themes/) | ✅ Available | Full desktop + RGB theming from a single prompt |
 | [🪟 Windowing](modules/windowing/) | 🔜 Planned | Save, restore, and create aesthetic window layouts |
 
 ## 🚀 Quick Start
@@ -233,6 +234,58 @@ Or tell your AI agent:
 
 The driver window shows a Spotify "now playing" panel (🎵 toggle) with track name, artist, mood, and album color swatches.
 
+## 🎨 Themes
+
+Transform your entire desktop with a single prompt — wallpaper, accent color, taskbar, dark/light mode, and RGB lighting all change together.
+
+### Usage
+
+```powershell
+# Apply a theme from a JSON spec
+python modules/themes/apply-theme.py --spec '{"name":"ocean","accent_color":"#0077B6","mode":"dark",...}'
+
+# Check what theming capabilities are available on your machine
+python modules/themes/apply-theme.py --check
+
+# Stop the theme RGB lighting effect
+python modules/themes/apply-theme.py --stop-lighting
+```
+
+Or tell your AI agent in natural language:
+
+> "Make everything shrek themed"
+>
+> "Give me a cozy autumn aesthetic"
+>
+> "Ocean theme — dark mode, blue everything"
+
+### How it works
+
+1. The AI agent interprets your prompt and generates a **theme spec** — picking colors, wallpaper, dark/light mode, and an RGB lighting style
+2. `apply-theme.py` orchestrates three handlers:
+   - **Wallpaper** — downloads a themed image and sets it (Full screen / Fill mode)
+   - **Desktop styling** — sets accent color, taskbar, dark/light mode, transparency via registry
+   - **RGB lighting** — starts a palette-driven effect on all Dynamic Lighting devices
+3. Each handler is **capability-aware** — if registry writes or DL devices aren't available, that component is gracefully skipped
+
+### Theme spec
+
+```json
+{
+    "name": "ocean",
+    "wallpaper_url": "https://example.com/ocean.jpg",
+    "wallpaper_search": "deep ocean underwater",
+    "accent_color": "#0077B6",
+    "mode": "dark",
+    "taskbar_accent": true,
+    "transparency": true,
+    "dl_palette": ["#0077B6", "#00B4D8", "#90E0EF", "#CAF0F8"],
+    "dl_style": "wave"
+}
+```
+
+All fields are optional. Available DL styles: `wave`, `breathe`, `shimmer`, `static`, `pulse`.
+
 ## 🗺️ Roadmap
 
 This skill is the first step toward full Windows personalization via natural language:
@@ -241,7 +294,8 @@ This skill is the first step toward full Windows personalization via natural lan
 - ✅ **V2:** Alert-based lighting (flash keyboard on Windows notifications)
 - ✅ **V2.1:** Driver UI (theme toggle, hide button, system tray, effect display)
 - ✅ **V2.2:** Spotify integration (album colors, mood mapping, beat-sync)
-- 🔜 **V3:** Multi-peripheral sync (mouse, headset, mousepad match keyboard effects)
+- ✅ **V3:** Themes (wallpaper + accent + taskbar + dark/light mode + RGB lighting from one prompt)
+- 🔜 **V3.1:** Multi-peripheral sync (mouse, headset, mousepad match keyboard effects)
 - 🔜 **V4:** Windowing (save/restore/create aesthetic window layouts)
 
 ### 🔆 Multi-Peripheral Sync (planned)

@@ -1,18 +1,22 @@
 # Themes Module
 
-🚧 **Coming Soon**
+Apply full desktop + RGB themes from a single JSON spec.
 
-This module will enable natural-language control of Windows theming:
+## Files
 
-- **Accent color** — change the system accent color
-- **Dark / Light mode** — toggle app and system themes
-- **Titlebar coloring** — enable/disable color on titlebars
-- **Color prevalence** — extend accent color to Start, taskbar, and action center
+| File | Description |
+|------|-------------|
+| `apply-theme.py` | Orchestrator CLI — parses spec, calls all handlers |
+| `desktop_handler.py` | Sets accent color, taskbar, dark/light mode, transparency via registry |
+| `wallpaper_handler.py` | Downloads themed image and sets as wallpaper (Fill mode) |
+| `lighting_handler.py` | Palette-driven DL effect on all peripherals via DeviceManager |
 
-## Planned Approach
+## Usage
 
-PowerShell scripts that modify the relevant registry keys and refresh the shell.
+```powershell
+python apply-theme.py --spec '{"name":"ocean","accent_color":"#0077B6","mode":"dark","dl_palette":["#0077B6","#00B4D8"],"dl_style":"wave"}'
+python apply-theme.py --check
+python apply-theme.py --stop-lighting
+```
 
-## Want to Contribute?
-
-If you'd like to help build this module, open an issue or PR! See [CONTRIBUTING.md](../../CONTRIBUTING.md).
+See the [main README](../../README.md#-themes) for full documentation.

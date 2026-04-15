@@ -221,17 +221,79 @@ Sync keyboard lighting to currently playing Spotify track — album art colors, 
 | "What song is playing?" | `python modules/spotify/spotify-sync.py status` |
 | "Stop the music sync" | `python modules/spotify/spotify-sync.py stop` |
 
-### 🎨 Themes (Planned)
-Change Windows accent color, dark/light mode, titlebar colors.
-- Future: PowerShell scripts in `modules/themes/`
+### 🎨 Themes (Available)
+Apply full desktop + RGB themes from a single prompt. Changes wallpaper, accent color, taskbar, dark/light mode, transparency, and Dynamic Lighting simultaneously.
 
-### 🖼️ Wallpaper (Planned)
-Set desktop wallpaper, lock screen, slideshow.
-- Future: PowerShell scripts in `modules/wallpaper/`
+**Prerequisites:**
+- Python 3.10+ with `requests` package (`pip install requests`)
+- Registry write access (for desktop styling — gracefully skipped if unavailable)
+- Dynamic Lighting driver built (for RGB — gracefully skipped if unavailable)
 
-### 🔊 Sounds (Planned)
-Change system sound scheme.
-- Future: PowerShell scripts in `modules/sounds/`
+**CLI Commands:**
+
+| Command | Description |
+|---------|-------------|
+| `python modules/themes/apply-theme.py --spec '<json>'` | Apply a full theme from a JSON spec |
+| `python modules/themes/apply-theme.py --check` | Check which theming capabilities are available |
+| `python modules/themes/apply-theme.py --stop-lighting` | Stop the running theme lighting effect |
+| `python modules/themes/lighting_handler.py --palette "<colors>" --style <style>` | Run just the RGB lighting effect |
+| `python modules/themes/lighting_handler.py --stop` | Stop the RGB lighting effect |
+
+**Theme Spec Format:**
+
+The agent generates this JSON from the user's natural language request:
+
+```json
+{
+    "name": "shrek",
+    "wallpaper_url": "https://example.com/shrek-swamp.jpg",
+    "wallpaper_search": "shrek ogre swamp green",
+    "accent_color": "#4A7C2E",
+    "mode": "dark",
+    "taskbar_accent": true,
+    "transparency": true,
+    "dl_palette": ["#4A7C2E", "#8B6914", "#2D5016", "#6B8F3C"],
+    "dl_style": "wave"
+}
+```
+
+All fields are optional — the tool applies what it can and gracefully skips the rest.
+
+**Field reference:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Theme name (for display) |
+| `wallpaper_url` | string | Direct URL to wallpaper image (preferred) |
+| `wallpaper_search` | string | Unsplash search query (fallback if URL fails) |
+| `accent_color` | string | Hex color for Windows accent (`#RRGGBB`) |
+| `mode` | string | `"dark"` or `"light"` — sets both app and system theme |
+| `taskbar_accent` | bool | Show accent color on taskbar and Start menu |
+| `transparency` | bool | Enable transparency effects |
+| `dl_palette` | string[] | 2-6 hex colors for RGB lighting effect |
+| `dl_style` | string | `"wave"`, `"breathe"`, `"shimmer"`, `"static"`, or `"pulse"` |
+
+**Example Prompt Mappings:**
+
+| User Says | Action |
+|-----------|--------|
+| "Make everything shrek themed" | Generate spec with green accent, swamp wallpaper, dark mode, green DL palette → `apply-theme.py --spec '...'` |
+| "Studio Ghibli theme" | Generate spec with sky blue accent, Ghibli wallpaper, light mode, pastel DL palette |
+| "Make my PC look like the ocean" | Deep blue accent, ocean wallpaper, dark mode, blue DL wave effect |
+| "Pink aesthetic" | Pink accent, pink flower wallpaper, light mode, pink DL shimmer |
+| "Dark hacker theme" | Black/green accent, dark matrix wallpaper, dark mode, green DL pulse |
+| "Stop the theme lighting" | `python modules/themes/apply-theme.py --stop-lighting` |
+
+**How to generate a theme spec from a prompt:**
+
+1. **Name**: Use the user's theme description
+2. **Colors**: Pick 1 accent color + 2-6 DL palette colors that match the theme. The accent color should be the dominant/primary color.
+3. **Wallpaper**: Find a wallpaper URL (Wikipedia, official sites, Unsplash). Always provide `wallpaper_search` as fallback.
+4. **Mode**: Choose dark or light based on the theme mood (dark for moody/gaming/night themes, light for bright/cute/nature themes)
+5. **Taskbar**: Usually `true` for bold themes (Shrek green, ocean blue), `false` for subtle/light themes
+6. **DL style**: Match the theme mood — `wave` (flowing/natural), `breathe` (calm/ambient), `shimmer` (sparkly/magical), `static` (clean/minimal), `pulse` (energetic/gaming)
+
+**Capability-aware**: The tool auto-detects what's available. If registry writes aren't possible, desktop styling is skipped. If no DL device is found, lighting is skipped. The tool always reports what it applied and what it skipped.
 
 ## Routing
 
@@ -239,7 +301,7 @@ When the user's request involves:
 - **Lighting, RGB, keyboard colors, LED effects** → Use Dynamic Lighting CLI commands or generate effect scripts
 - **Alerts, notifications, "when I get", "flash when", "notify me"** → Use alert-watcher.py CLI commands
 - **Spotify, music, "sync to music", "what's playing", album colors** → Use Spotify module commands
-- **Theme, accent color, dark mode, light mode, titlebar** → Themes module (planned)
-- **Wallpaper, background, lock screen, desktop image** → Wallpaper module (planned)
-- **Sounds, notification sound, system audio** → Sounds module (planned)
-- **"Make everything [color]"** or **broad personalization** → Invoke all available modules for that color/theme
+- **Theme, accent color, dark mode, light mode, wallpaper, "make everything X"** → Use Themes module (`apply-theme.py`)
+- **Just wallpaper** → Use Themes module with only `wallpaper_url`/`wallpaper_search` fields
+- **Just accent color or dark/light mode** → Use Themes module with only `accent_color`/`mode` fields
+- **"Make everything [theme]"** or **broad personalization** → Use Themes module with full spec (wallpaper + desktop + DL)
