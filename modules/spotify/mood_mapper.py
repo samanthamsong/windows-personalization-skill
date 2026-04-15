@@ -96,8 +96,8 @@ def mood_to_effect_params(mood, tempo, album_colors):
 
     else:  # neutral
         params['pattern'] = 'wave'
-        params['speed'] = speed * 0.8
-        params['brightness'] = 0.85
+        params['speed'] = max(speed * 0.8, 1.0)
+        params['brightness'] = 1.0
 
     return params
 

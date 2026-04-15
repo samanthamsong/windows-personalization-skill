@@ -1,2 +1,3 @@
 .spotify-token
 __pycache__/
+.spotify-sync.pid

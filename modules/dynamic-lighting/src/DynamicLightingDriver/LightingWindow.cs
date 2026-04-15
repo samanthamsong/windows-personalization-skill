@@ -375,11 +375,14 @@ public sealed class LightingWindow : IDisposable
             if (_musicToggle is not null)
             {
                 _musicToggle.ForeColor = _hasSpotifyData
-                    ? System.Drawing.Color.FromArgb(30, 215, 96) // Spotify green when active
+                    ? System.Drawing.Color.FromArgb(30, 215, 96)
                     : textDim;
                 _musicToggle.BackColor = bgColor;
             }
             ApplySpotifyPanelTheme(bgColor, textPrimary, textSecondary);
+
+            // Catch any remaining child controls that weren't explicitly themed
+            ApplyBackColorRecursive(_form, bgColor);
         });
     }
 
@@ -511,6 +514,35 @@ public sealed class LightingWindow : IDisposable
         }
     }
 
+    /// <summary>
+    /// Recursively sets BackColor on all child panels/labels that still have
+    /// a dark or light background from the previous theme. Skips the accent bar
+    /// and color swatch circles (which have intentional custom colors).
+    /// </summary>
+    private static void ApplyBackColorRecursive(Control parent, System.Drawing.Color bg)
+    {
+        foreach (Control child in parent.Controls)
+        {
+            // Skip controls with intentional custom colors
+            if (child.Tag is "keep-color") continue;
+            // Skip color swatch circles (small 18×18 panels with non-standard bg)
+            if (child is Panel p && p.Width == 18 && p.Height == 18) continue;
+
+            // Only update panels and labels (not the accent bar which is 3px tall at top)
+            if (child is Panel panel && panel.Height > 3)
+            {
+                panel.BackColor = bg;
+            }
+            else if (child is Label label)
+            {
+                label.BackColor = bg;
+            }
+
+            if (child.HasChildren)
+                ApplyBackColorRecursive(child, bg);
+        }
+    }
+
     private void RunUIThread()
     {
         Application.EnableVisualStyles();
@@ -572,7 +604,7 @@ public sealed class LightingWindow : IDisposable
             AutoSize = false,
             Height = 28,
             Dock = DockStyle.Left,
-            Width = 280,
+            Width = 240,
             TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
             Font = new System.Drawing.Font("Segoe UI", 9f, System.Drawing.FontStyle.Regular),
             ForeColor = textDim,
@@ -646,10 +678,11 @@ public sealed class LightingWindow : IDisposable
             Height = 48,
             Dock = DockStyle.Top,
             TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
-            Font = new System.Drawing.Font("Segoe UI Semibold", 18f, System.Drawing.FontStyle.Bold),
+            Font = new System.Drawing.Font("Segoe UI Semibold", 14f, System.Drawing.FontStyle.Bold),
             ForeColor = textPrimary,
             BackColor = bgColor,
-            Padding = new Padding(16, 0, 0, 0),
+            Padding = new Padding(16, 0, 8, 0),
+            AutoEllipsis = true,
         };
 
         // Detail / subtitle
@@ -660,10 +693,11 @@ public sealed class LightingWindow : IDisposable
             Height = 24,
             Dock = DockStyle.Top,
             TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
-            Font = new System.Drawing.Font("Segoe UI", 10f),
+            Font = new System.Drawing.Font("Segoe UI", 9f),
             ForeColor = textSecondary,
             BackColor = bgColor,
-            Padding = new Padding(16, 0, 0, 0),
+            Padding = new Padding(16, 0, 8, 0),
+            AutoEllipsis = true,
         };
 
         // Bottom bar with status dot
@@ -711,10 +745,11 @@ public sealed class LightingWindow : IDisposable
             Height = 24,
             Dock = DockStyle.Top,
             TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
-            Font = new System.Drawing.Font("Segoe UI Semibold", 10f, System.Drawing.FontStyle.Bold),
+            Font = new System.Drawing.Font("Segoe UI Semibold", 9.5f, System.Drawing.FontStyle.Bold),
             ForeColor = textPrimary,
             BackColor = bgColor,
-            Padding = new Padding(0, 4, 0, 0),
+            Padding = new Padding(0, 4, 8, 0),
+            AutoEllipsis = true,
         };
 
         _spotifyArtistLabel = new Label
@@ -724,9 +759,10 @@ public sealed class LightingWindow : IDisposable
             Height = 20,
             Dock = DockStyle.Top,
             TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
-            Font = new System.Drawing.Font("Segoe UI", 9f),
+            Font = new System.Drawing.Font("Segoe UI", 8.5f),
             ForeColor = textSecondary,
             BackColor = bgColor,
+            AutoEllipsis = true,
         };
 
         var spotifyBottomRow = new Panel

@@ -5,15 +5,17 @@ Polls Spotify for the currently playing track and drives keyboard lighting
 based on album art colors and audio features (energy, mood, tempo).
 
 Usage:
-    python spotify-sync.py start              # Full takeover mode
-    python spotify-sync.py start --overlay    # Tint current effect with album colors
-    python spotify-sync.py stop               # Stop sync
-    python spotify-sync.py status             # Show current track + mood
+    python spotify-sync.py start                     # Color wave mode
+    python spotify-sync.py start --beat-sync         # Pulse on every beat
+    python spotify-sync.py start --overlay           # Tint current effect with album colors
+    python spotify-sync.py stop                      # Stop sync
+    python spotify-sync.py status                    # Show current track + mood
 
 Requires:
     - Spotify Premium account
     - SPOTIPY_CLIENT_ID env var or run `python auth.py` first
     - Dynamic Lighting driver built and registered
+    - --beat-sync requires: sounddevice, numpy (pip install sounddevice numpy)
 """
 
 import os
@@ -60,14 +62,16 @@ for ri, count in enumerate(ROWS):
 
 
 class SpotifySync:
-    def __init__(self, overlay=False):
+    def __init__(self, overlay=False, beat_sync=False):
         self.overlay = overlay
+        self.beat_sync = beat_sync
         self.running = False
         self.sp = None
         self.proc = None
         self.current_track_id = None
         self.current_colors = [(80, 80, 120)]
         self.current_params = None
+        self.beat_detector = None
 
     def start_driver(self):
         """Launch the Dynamic Lighting driver subprocess."""
@@ -149,26 +153,37 @@ class SpotifySync:
             x, y = lamp['x'], lamp['y']
 
             if pattern == 'wave':
-                # Horizontal wave using album colors
-                wave = math.sin(x * math.pi * 2 - t * speed * 2.0) * 0.5 + 0.5
-                # Pick two colors to blend between
-                c1 = shifted_colors[0]
-                c2 = shifted_colors[min(1, len(shifted_colors) - 1)]
-                color = blend_colors(c1, c2, wave)
+                # Horizontal wave using album colors — bold, full-range sweep
+                wave = math.sin(x * math.pi * 3 - t * speed * 3.0) * 0.5 + 0.5
+                # Sharpen the wave for more distinct color bands
+                wave = wave ** 0.6
 
-                # Add vertical variation with third color
-                if len(shifted_colors) > 2:
-                    vert = math.sin(y * math.pi - t * speed * 0.5) * 0.3 + 0.5
-                    color = blend_colors(color, shifted_colors[2], vert * 0.3)
+                # Cycle through all album colors, not just two
+                num_c = len(shifted_colors)
+                idx_f = wave * (num_c - 1)
+                ci_lo = int(idx_f)
+                ci_hi = min(ci_lo + 1, num_c - 1)
+                frac = idx_f - ci_lo
+                color = blend_colors(shifted_colors[ci_lo], shifted_colors[ci_hi], frac)
+
+                # Stronger vertical variation with third color
+                if num_c > 2:
+                    vert = math.sin(y * math.pi * 1.5 - t * speed * 1.2) * 0.5 + 0.5
+                    color = blend_colors(color, shifted_colors[num_c - 1], vert * 0.4)
 
             elif pattern == 'breathe':
-                # Breathing pulse with album colors
-                pulse = math.sin(t * speed * 1.5) * 0.5 + 0.5
-                c1 = shifted_colors[0]
-                c2 = shifted_colors[min(1, len(shifted_colors) - 1)]
-                base = blend_colors(c1, c2, x)
-                # Dim the base by the pulse
-                color = apply_brightness(base, 0.3 + pulse * 0.7)
+                # Breathing pulse with album colors — deeper range
+                pulse = math.sin(t * speed * 2.0) * 0.5 + 0.5
+                pulse = pulse ** 0.5  # Spend more time bright
+                num_c = len(shifted_colors)
+                # Sweep across colors based on position
+                idx_f = x * (num_c - 1)
+                ci_lo = int(idx_f)
+                ci_hi = min(ci_lo + 1, num_c - 1)
+                frac = idx_f - ci_lo
+                base = blend_colors(shifted_colors[ci_lo], shifted_colors[ci_hi], frac)
+                # Wider brightness range: 0.15 to 1.0
+                color = apply_brightness(base, 0.15 + pulse * 0.85)
 
             else:
                 color = shifted_colors[0]
@@ -176,12 +191,65 @@ class SpotifySync:
             # Apply overall brightness
             color = apply_brightness(color, brightness)
 
-            # Twinkle overlay
+            # Twinkle overlay — more frequent sparkles
             if params.get('overlay') == 'twinkle':
-                sparkle = math.sin(t * 8 + lamp['idx'] * 1.7) * 0.5 + 0.5
-                if sparkle > 0.92:
+                sparkle = math.sin(t * 10 + lamp['idx'] * 1.7) * 0.5 + 0.5
+                if sparkle > 0.85:
                     color = (255, 255, 255)
 
+            frame[str(lamp['idx'])] = rgb_to_hex(*color)
+
+        return frame
+
+    def render_beat_frame(self, t, params, beat_phase):
+        """Render a frame with beat-reactive pulse.
+
+        beat_phase: 0.0 = just hit a beat (bright flash), decays to 1.0 between beats.
+        """
+        colors = params['colors']
+        if not colors:
+            colors = [(80, 80, 120)]
+
+        color_shift = params.get('color_shift')
+        shifted_colors = colors[:]
+        if color_shift:
+            shifted_colors = [shift_color_temperature(c, color_shift) for c in colors]
+
+        # Beat pulse: sharp attack, exponential decay
+        # beat_phase 0.0 → 1.0 flash, 0.5 → 0.25, 1.0 → dim
+        pulse = max(0.0, 1.0 - beat_phase * 1.8)  # Quick decay
+        pulse = pulse ** 0.5  # Soften the curve slightly
+        dim = 0.08  # Floor brightness between beats
+        brightness = dim + pulse * (1.0 - dim)
+
+        # Color index shifts on each beat for variety
+        beat_count = int(t * 2) % len(shifted_colors)
+
+        frame = {}
+        for lamp in LAMPS:
+            x, y = lamp['x'], lamp['y']
+
+            # Radial burst from center on beat
+            cx, cy = 0.5, 0.5
+            dist = math.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+            max_dist = math.sqrt(0.5 ** 2 + 0.5 ** 2)
+            norm_dist = dist / max_dist
+
+            # Ripple: beat expands outward
+            ripple = max(0.0, 1.0 - abs(norm_dist - beat_phase * 0.8) * 4.0)
+
+            # Pick color based on distance from center + beat shift
+            num_c = len(shifted_colors)
+            ci = (int(norm_dist * num_c) + beat_count) % num_c
+            ci2 = (ci + 1) % num_c
+            frac = (norm_dist * num_c) % 1.0
+            base = blend_colors(shifted_colors[ci], shifted_colors[ci2], frac)
+
+            # Combine: overall pulse + ripple ring
+            local_brightness = brightness + ripple * 0.5
+            local_brightness = min(1.0, local_brightness)
+
+            color = apply_brightness(base, local_brightness)
             frame[str(lamp['idx'])] = rgb_to_hex(*color)
 
         return frame
@@ -216,16 +284,28 @@ class SpotifySync:
 
         if not self.overlay:
             self.start_driver()
-            # Set effect name
-            self.send('SET_EFFECT_NAME Spotify Sync')
+            effect_name = "Spotify Beat Sync" if self.beat_sync else "Spotify Sync"
+            self.send(f'SET_EFFECT_NAME {effect_name}')
             self.recv()
+
+        # Start beat detector if requested
+        if self.beat_sync:
+            try:
+                from beat_detect import BeatDetector
+                self.beat_detector = BeatDetector(sensitivity=1.4, cooldown=0.12)
+                self.beat_detector.start()
+                print("🥁 Beat detection active (WASAPI loopback)")
+            except Exception as e:
+                print(f"  ⚠ Beat detection failed: {e}")
+                print("  ℹ Falling back to timed animation")
+                self.beat_sync = False
 
         # Write PID file
         with open(PID_FILE, 'w') as f:
             f.write(str(os.getpid()))
 
         self.running = True
-        mode_str = "overlay" if self.overlay else "replace"
+        mode_str = "beat-sync" if self.beat_sync else ("overlay" if self.overlay else "replace")
         print(f"🎵 Syncing in {mode_str} mode (updates every 3s, Ctrl+C to stop)")
         print()
 
@@ -288,19 +368,42 @@ class SpotifySync:
 
                 # Render frames in replace mode
                 if not self.overlay and self.current_params:
-                    # Run ~8fps for 3 seconds, then re-poll Spotify
-                    for _ in range(24):  # 3 seconds at 8fps
-                        if not self.running:
-                            break
-                        t = time.time() - start_time
-                        frame = self.render_frame(t, self.current_params)
-                        self.send(f"SET_LAMPS {json.dumps(frame)}")
-                        self.recv()
-                        frame_count += 1
-                        target = frame_count / 8.0
-                        elapsed = time.time() - start_time
-                        if target > elapsed:
-                            time.sleep(target - elapsed)
+                    if self.beat_sync and self.beat_detector:
+                        # Beat-sync mode: render at ~30fps, pulse on beats
+                        last_beat = time.time()
+                        for _ in range(90):  # 3 seconds at 30fps
+                            if not self.running:
+                                break
+                            now = time.time()
+                            t = now - start_time
+
+                            # Check for new beat
+                            if self.beat_detector.wait_for_beat(timeout=0.001):
+                                last_beat = now
+
+                            beat_phase = min(1.0, (now - last_beat) / 0.5)  # 0.5s decay
+                            frame = self.render_beat_frame(t, self.current_params, beat_phase)
+                            self.send(f"SET_LAMPS {json.dumps(frame, separators=(",", ":"))}")
+                            self.recv()
+                            frame_count += 1
+                            target = frame_count / 30.0
+                            elapsed = now - start_time
+                            if target > elapsed:
+                                time.sleep(target - elapsed)
+                    else:
+                        # Standard mode: render at ~8fps
+                        for _ in range(24):  # 3 seconds at 8fps
+                            if not self.running:
+                                break
+                            t = time.time() - start_time
+                            frame = self.render_frame(t, self.current_params)
+                            self.send(f"SET_LAMPS {json.dumps(frame, separators=(",", ":"))}")
+                            self.recv()
+                            frame_count += 1
+                            target = frame_count / 8.0
+                            elapsed = time.time() - start_time
+                            if target > elapsed:
+                                time.sleep(target - elapsed)
                 else:
                     # Overlay mode — just poll every 3s
                     time.sleep(3)
@@ -309,6 +412,8 @@ class SpotifySync:
             print("\n⏹  Stopping Spotify sync...")
         finally:
             self.running = False
+            if self.beat_detector:
+                self.beat_detector.stop()
             if self.overlay:
                 self.clear_overlay_palette()
             if os.path.exists(PID_FILE):
@@ -325,7 +430,8 @@ class SpotifySync:
 
 def cmd_start(args):
     overlay = '--overlay' in args
-    sync = SpotifySync(overlay=overlay)
+    beat_sync = '--beat-sync' in args
+    sync = SpotifySync(overlay=overlay, beat_sync=beat_sync)
 
     # Handle Ctrl+C gracefully
     def sigint_handler(sig, frame):
@@ -396,10 +502,12 @@ def cmd_status():
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print("Usage:")
-        print("  python spotify-sync.py start [--overlay]  Start music-reactive lighting")
-        print("  python spotify-sync.py stop               Stop sync")
-        print("  python spotify-sync.py status             Show current track + mood")
-        print("  python spotify-sync.py auth               Authenticate with Spotify")
+        print("  python spotify-sync.py start                     Color wave mode")
+        print("  python spotify-sync.py start --beat-sync         Pulse on every beat")
+        print("  python spotify-sync.py start --overlay           Tint current effect")
+        print("  python spotify-sync.py stop                      Stop sync")
+        print("  python spotify-sync.py status                    Show current track + mood")
+        print("  python spotify-sync.py auth                      Authenticate with Spotify")
         sys.exit(0)
 
     cmd = sys.argv[1]

@@ -16,31 +16,26 @@ import spotipy
 from spotipy.oauth2 import SpotifyPKCE
 
 TOKEN_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.spotify-token')
-REDIRECT_URI = 'http://localhost:8888/callback'
+REDIRECT_URI = 'http://127.0.0.1:8888/callback'
 SCOPES = 'user-read-currently-playing user-read-playback-state'
+DEFAULT_CLIENT_ID = '231a510c2e5b49d3913b12f461578064'
 
 
 def get_client_id():
-    """Get Spotify Client ID from env or prompt."""
+    """Get Spotify Client ID from env, config file, or built-in default."""
     client_id = os.environ.get('SPOTIPY_CLIENT_ID')
-    if not client_id:
-        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.spotify-config')
-        if os.path.exists(config_path):
-            with open(config_path, 'r') as f:
-                config = json.load(f)
-                client_id = config.get('client_id')
-    if not client_id:
-        print("No Spotify Client ID found.")
-        print("1. Go to https://developer.spotify.com/dashboard")
-        print("2. Create an app with redirect URI: http://localhost:8888/callback")
-        print("3. Copy the Client ID")
-        client_id = input("\nEnter Client ID: ").strip()
+    if client_id:
+        return client_id
+
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.spotify-config')
+    if os.path.exists(config_path):
+        with open(config_path, 'r') as f:
+            config = json.load(f)
+            client_id = config.get('client_id')
         if client_id:
-            config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.spotify-config')
-            with open(config_path, 'w') as f:
-                json.dump({'client_id': client_id}, f)
-            print(f"Saved to {config_path}")
-    return client_id
+            return client_id
+
+    return DEFAULT_CLIENT_ID
 
 
 def get_auth_manager(client_id=None):
