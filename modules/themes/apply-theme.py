@@ -172,11 +172,12 @@ def apply_theme(spec: dict) -> dict:
                 stop_lighting()
 
                 # Use Start-Process to launch a fully independent process
+                # Python runs hidden; the DL driver creates its own foreground window
                 ps_cmd = (
                     f'$env:PYTHONIOENCODING = "utf-8"; '
                     f'Start-Process -FilePath "{sys.executable}" '
                     f'-ArgumentList @("{lighting_script}", "--palette", "{palette_arg}", "--style", "{dl_style}") '
-                    f'-WindowStyle Minimized'
+                    f'-WindowStyle Hidden'
                 )
                 result = subprocess.run(
                     ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
