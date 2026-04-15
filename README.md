@@ -25,6 +25,7 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 | Python | 3.10+ | [python.org](https://www.python.org/downloads/) or `winget install Python.Python.3.12` |
 | WinAppCLI | 0.2+ | `winget install Microsoft.WinAppCli` |
 | Dynamic Lighting device | — | Any [compatible](https://support.microsoft.com/en-us/windows/control-your-dynamic-lighting-devices-in-windows-8e9f9b1f-6844-4c5e-9873-d836e87fcb7f) RGB keyboard, mouse, light strip, etc. |
+| Spotify account | — | Free or Premium (for Spotify integration) |
 
 > **Windows Settings:** Go to **Settings → Personalization → Dynamic Lighting** and ensure **"Use Dynamic Lighting on my devices"** is turned on.
 
@@ -175,11 +176,64 @@ The driver runs a companion window that provides foreground status for the LampA
 | Feature | Description |
 |---------|-------------|
 | **Effect name display** | Shows the currently running effect name |
+| **🎵 Spotify panel** | Now-playing info: track, artist, mood, album color swatches (auto-shows when Spotify sync is running) |
 | **☀️/🌙 Theme toggle** | Switch between light and dark mode |
 | **👁 Hide button** | Make the window invisible (stays running); restore from system tray |
 | **System tray icon** | Always visible — right-click to restore or exit |
 
 The window stays in the foreground to maintain LampArray access. When hidden, it becomes fully transparent but retains foreground status.
+
+## 🎵 Spotify Integration
+
+Sync your keyboard lighting to the currently playing Spotify track. Album art colors drive the palette, and audio features shape the animation.
+
+### Setup (one-time)
+
+```powershell
+# Install Python dependencies
+pip install spotipy Pillow requests pycaw comtypes numpy
+
+# Authenticate with your Spotify account (opens browser)
+python modules/spotify/auth.py
+```
+
+That's it — the Client ID is built in. Each developer logs in with their own Spotify account.
+
+### Usage
+
+```powershell
+# Color wave synced to album art
+python modules/spotify/spotify-sync.py start
+
+# Beat-reactive mode — keyboard pulses on every beat
+python modules/spotify/spotify-sync.py start --beat-sync
+
+# Overlay mode — tints the current running effect with album colors
+python modules/spotify/spotify-sync.py start --overlay
+
+# Check what's playing
+python modules/spotify/spotify-sync.py status
+
+# Stop sync
+python modules/spotify/spotify-sync.py stop
+```
+
+Or tell your AI agent:
+
+> "Sync my keyboard to Spotify"
+>
+> "Pulse my keyboard to the beat"
+>
+> "Stop the music sync"
+
+### How it works
+
+1. **Album art → colors**: Downloads the album cover and extracts dominant colors via k-means quantization
+2. **Audio features → mood**: Maps Spotify's energy, valence, and tempo to a mood (energetic, peaceful, melancholy, etc.)
+3. **Mood → effect**: Each mood drives a different animation pattern and speed
+4. **Beat sync** (optional): Reads the Windows audio meter in real-time to detect beats and trigger radial burst pulses
+
+The driver window shows a Spotify "now playing" panel (🎵 toggle) with track name, artist, mood, and album color swatches.
 
 ## 🗺️ Roadmap
 
@@ -188,11 +242,12 @@ This skill is the first step toward full Windows personalization via natural lan
 - ✅ **V1:** Dynamic Lighting (RGB devices via CLI)
 - ✅ **V2:** Alert-based lighting (flash keyboard on Windows notifications)
 - ✅ **V2.1:** Driver UI (theme toggle, hide button, system tray, effect display)
+- ✅ **V2.2:** Spotify integration (album colors, mood mapping, beat-sync)
 - 🔜 **V3:** Themes (accent color, dark/light mode)
 - 🔜 **V4:** Wallpaper + Sounds
 - 🔮 **Future:** Multi-surface orchestration ("make my whole PC feel like the ocean")
 
-## 🤝 Contributing
+## 🛠️ Developer Setup
 
 Want to run this on your own machine from scratch? Here's the full setup:
 
@@ -214,9 +269,8 @@ winget install Python.Python.3.12
 # WinAppCLI (for MSIX packaging and signing)
 winget install Microsoft.WinAppCli
 
-# Windows SDK (optional — WinAppCLI replaces MakeAppx/SignTool for packaging)
-# Only needed if you want to use the Windows SDK tools directly
-# winget install Microsoft.WindowsSDK
+# Python dependencies (for effects and Spotify integration)
+pip install spotipy Pillow requests pycaw comtypes numpy
 ```
 
 ### Clone and build
@@ -246,6 +300,16 @@ python modules/dynamic-lighting/lighting.py diagnose
 python modules/dynamic-lighting/lighting.py set-color "#00FF00"
 ```
 
+### Set up Spotify integration (optional)
+
+```powershell
+# Authenticate with your Spotify account (opens browser — log in and click Agree)
+python modules/spotify/auth.py
+
+# Test it — play a song on Spotify, then:
+python modules/spotify/spotify-sync.py start --beat-sync
+```
+
 ### Troubleshooting
 
 | Issue | Fix |
@@ -255,6 +319,8 @@ python modules/dynamic-lighting/lighting.py set-color "#00FF00"
 | Driver not taking effect | Move "Dynamic Lighting Driver" to top of priority list in Dynamic Lighting settings |
 | Certificate trust error on `Add-AppxPackage` | Run `Register-AmbientLighting.ps1` once from an admin prompt |
 | Effects not showing on keyboard | Check that no other lighting app (iCUE, SignalRGB, etc.) is overriding |
+| Spotify auth fails | Ensure you clicked "Agree" in the browser; check that `http://127.0.0.1:8888/callback` is in your app's redirect URIs |
+| Spotify "403 Forbidden" on audio features | Spotify recently restricted this API for new apps — mood defaults to "neutral" but album colors still work |
 
 ### Uninstall
 
