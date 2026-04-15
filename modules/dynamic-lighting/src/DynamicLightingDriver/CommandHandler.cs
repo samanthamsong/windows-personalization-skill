@@ -53,12 +53,14 @@ public sealed class CommandHandler
             {
                 "SET_ALL" => await HandleSetAll(args),
                 "SET_LAMPS" => await HandleSetLamps(args),
+                "SET_LAMPS_MULTI" => await HandleSetLampsMulti(args),
                 "SET_EFFECT_NAME" => HandleSetEffectName(args),
                 "SET_THEME" => HandleSetTheme(args),
                 "SET_SPOTIFY" => HandleSetSpotify(args),
                 "CLEAR_SPOTIFY" => HandleClearSpotify(),
                 "LIST_DEVICES" => await HandleListDevices(),
                 "GET_LAYOUT" => await HandleGetLayout(),
+                "GET_ALL_LAYOUTS" => await HandleGetAllLayouts(),
                 "DIAGNOSE" => await HandleDiagnose(),
                 "CREATE_EFFECT" => await HandleCreateEffect(args),
                 "STOP_EFFECT" => HandleStopEffect(),
@@ -265,6 +267,165 @@ public sealed class CommandHandler
         };
 
         return "OK " + JsonSerializer.Serialize(result);
+    }
+
+    // -----------------------------------------------------------------------
+    // GET_ALL_LAYOUTS — returns layouts for every connected device in one call
+    // -----------------------------------------------------------------------
+    private async Task<string> HandleGetAllLayouts()
+    {
+        var devices = await _lampArrayService.GetDevicesAsync();
+        if (devices.Count == 0)
+            return "OK {\"devices\":[]}";
+
+        var deviceLayouts = new List<object>();
+
+        foreach (var info in devices)
+        {
+            LampArray lampArray;
+            try
+            {
+                lampArray = await _lampArrayService.GetDeviceAsync(info.Id);
+            }
+            catch
+            {
+                continue;
+            }
+
+            var positions = _lampArrayService.GetAllLampPositions(lampArray);
+            var metersX = positions.Select(p => LampMeters(p.X)).ToArray();
+            var metersY = positions.Select(p => LampMeters(p.Y)).ToArray();
+            var boxWidth = LampMeters(lampArray.BoundingBox.X);
+            var boxHeight = LampMeters(lampArray.BoundingBox.Y);
+
+            var hasPositions = metersX.Any(v => v != 0d) || metersY.Any(v => v != 0d);
+            var syntheticLayout = !hasPositions;
+
+            var lamps = new List<object>(lampArray.LampCount);
+
+            if (syntheticLayout && lampArray.LampArrayKind == LampArrayKind.Keyboard)
+            {
+                var grid = BuildSyntheticKeyboardGrid(lampArray.LampCount);
+                for (var i = 0; i < lampArray.LampCount; i++)
+                {
+                    var lampInfo = lampArray.GetLampInfo(i);
+                    lamps.Add(new
+                    {
+                        index = i,
+                        x = Math.Round(grid[i].X, 3),
+                        y = Math.Round(grid[i].Y, 3),
+                        purpose = LampPurpose(lampInfo),
+                        color_settable = LampColorSettable(lampInfo),
+                    });
+                }
+            }
+            else
+            {
+                var minX = metersX.Length > 0 ? metersX.Min() : 0d;
+                var maxX = metersX.Length > 0 ? metersX.Max() : 0d;
+                var minY = metersY.Length > 0 ? metersY.Min() : 0d;
+                var maxY = metersY.Length > 0 ? metersY.Max() : 0d;
+                var width = boxWidth > 0 ? boxWidth : Math.Max(maxX - minX, 0.001);
+                var height = boxHeight > 0 ? boxHeight : Math.Max(maxY - minY, 0.001);
+
+                for (var i = 0; i < lampArray.LampCount; i++)
+                {
+                    var nx = Math.Round(Math.Clamp((metersX[i] - minX) / width, 0d, 1d), 3);
+                    var ny = Math.Round(Math.Clamp((metersY[i] - minY) / height, 0d, 1d), 3);
+                    var lampInfo = lampArray.GetLampInfo(i);
+                    lamps.Add(new
+                    {
+                        index = i,
+                        x = nx,
+                        y = ny,
+                        purpose = LampPurpose(lampInfo),
+                        color_settable = LampColorSettable(lampInfo),
+                    });
+                }
+            }
+
+            deviceLayouts.Add(new
+            {
+                id = info.Id,
+                name = info.Name,
+                kind = lampArray.LampArrayKind.ToString(),
+                lamp_count = lampArray.LampCount,
+                width_cm = Math.Round(boxWidth * 100.0),
+                height_cm = Math.Round(boxHeight * 100.0),
+                synthetic_layout = syntheticLayout,
+                lamps,
+            });
+        }
+
+        var result = new { devices = deviceLayouts };
+        return "OK " + JsonSerializer.Serialize(result);
+    }
+
+    // -----------------------------------------------------------------------
+    // SET_LAMPS_MULTI {"<device_id>": {"0":"#ff0000",...}, ...}
+    // Sets lamps on multiple devices in a single call for tight sync.
+    // -----------------------------------------------------------------------
+    private async Task<string> HandleSetLampsMulti(string jsonArg)
+    {
+        if (string.IsNullOrWhiteSpace(jsonArg))
+            return "ERROR JSON mapping of device_id → lamp_colors is required.";
+
+        try
+        {
+            using var doc = JsonDocument.Parse(jsonArg);
+            if (doc.RootElement.ValueKind != JsonValueKind.Object)
+                return "ERROR Expected a JSON object mapping device IDs to lamp color maps.";
+
+            var totalLamps = 0;
+            var deviceCount = 0;
+
+            foreach (var deviceEntry in doc.RootElement.EnumerateObject())
+            {
+                var deviceId = deviceEntry.Name;
+                LampArray device;
+                try
+                {
+                    device = await _lampArrayService.GetDeviceAsync(deviceId);
+                }
+                catch
+                {
+                    continue; // skip disconnected devices
+                }
+
+                var lampColorMap = new Dictionary<int, Color>();
+                var defaultParsed = Color.FromArgb(255, 0, 0, 0);
+
+                if (deviceEntry.Value.ValueKind == JsonValueKind.Object)
+                {
+                    foreach (var property in deviceEntry.Value.EnumerateObject())
+                    {
+                        if (int.TryParse(property.Name, out var index) && index >= 0 && index < device.LampCount)
+                        {
+                            var colorStr = property.Value.GetString() ?? "";
+                            lampColorMap[index] = ParseSingleColor(colorStr, defaultParsed);
+                        }
+                    }
+                }
+
+                if (lampColorMap.Count == 0)
+                    continue;
+
+                if (!_effectEngine.TryUpdatePerLampColors(device, lampColorMap, defaultParsed))
+                {
+                    await EnsureDeviceAvailable(device);
+                    _effectEngine.ApplyPerLampColors(device, lampColorMap, defaultParsed);
+                }
+
+                totalLamps += lampColorMap.Count;
+                deviceCount++;
+            }
+
+            return $"OK {totalLamps} lamps on {deviceCount} devices";
+        }
+        catch (JsonException ex)
+        {
+            return $"ERROR Invalid JSON: {ex.Message}";
+        }
     }
 
     // -----------------------------------------------------------------------

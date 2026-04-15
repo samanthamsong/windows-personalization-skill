@@ -34,6 +34,7 @@ sys.path.insert(0, MODULE_DIR)
 from auth import get_spotify, check_status
 from color_extract import colors_from_url, rgb_to_hex
 from mood_mapper import classify_mood, mood_to_effect_params, apply_brightness, blend_colors, shift_color_temperature
+from device_manager import DeviceManager
 
 # Driver exe path
 DRIVER_EXE = os.path.join(MODULE_DIR, '..', 'dynamic-lighting', 'src',
@@ -46,20 +47,6 @@ PALETTE_FILE = os.path.join(MODULE_DIR, '..', 'dynamic-lighting', 'rules', '.spo
 # PID file for stop command
 PID_FILE = os.path.join(MODULE_DIR, '.spotify-sync.pid')
 
-# Keyboard layout (same as effect scripts)
-ROWS = [15, 15, 15, 14, 13, 8, 7]
-ROW_OFFSETS = [0, 0, 0.075, 0.12, 0.15, 0, 0.85]
-ROW_KW = [1, 1, 1, 1, 1, 1.5, 1]
-
-LAMPS = []
-idx = 0
-for ri, count in enumerate(ROWS):
-    for ci in range(count):
-        x = (ROW_OFFSETS[ri] + ci * ROW_KW[ri]) / 15.0
-        y = ri / 6.0
-        LAMPS.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
-        idx += 1
-
 
 class SpotifySync:
     def __init__(self, overlay=False, beat_sync=False):
@@ -68,6 +55,7 @@ class SpotifySync:
         self.running = False
         self.sp = None
         self.proc = None
+        self.dm = None
         self.current_track_id = None
         self.current_colors = [(80, 80, 120)]
         self.current_params = None
@@ -132,8 +120,11 @@ class SpotifySync:
             print(f"  ⚠ Audio features error: {e}")
         return {'energy': 0.5, 'valence': 0.5, 'tempo': 120, 'danceability': 0.5, 'instrumentalness': 0.0}
 
-    def render_frame(self, t, params):
-        """Render a single frame of the music-reactive effect."""
+    def render_lamp(self, x, y, lamp_idx, t, params):
+        """Render color for a single lamp at normalized position (x, y).
+
+        Works for any device — keyboard, mouse, headset, mousepad.
+        """
         colors = params['colors']
         if not colors:
             colors = [(80, 80, 120)]
@@ -143,69 +134,49 @@ class SpotifySync:
         pattern = params.get('pattern', 'wave')
         color_shift = params.get('color_shift')
 
-        # Apply color temperature shift if specified
         shifted_colors = colors[:]
         if color_shift:
             shifted_colors = [shift_color_temperature(c, color_shift) for c in colors]
 
-        frame = {}
-        for lamp in LAMPS:
-            x, y = lamp['x'], lamp['y']
+        if pattern == 'wave':
+            wave = math.sin(x * math.pi * 3 - t * speed * 3.0) * 0.5 + 0.5
+            wave = wave ** 0.6
+            num_c = len(shifted_colors)
+            idx_f = wave * (num_c - 1)
+            ci_lo = int(idx_f)
+            ci_hi = min(ci_lo + 1, num_c - 1)
+            frac = idx_f - ci_lo
+            color = blend_colors(shifted_colors[ci_lo], shifted_colors[ci_hi], frac)
 
-            if pattern == 'wave':
-                # Horizontal wave using album colors — bold, full-range sweep
-                wave = math.sin(x * math.pi * 3 - t * speed * 3.0) * 0.5 + 0.5
-                # Sharpen the wave for more distinct color bands
-                wave = wave ** 0.6
+            if num_c > 2:
+                vert = math.sin(y * math.pi * 1.5 - t * speed * 1.2) * 0.5 + 0.5
+                color = blend_colors(color, shifted_colors[num_c - 1], vert * 0.4)
 
-                # Cycle through all album colors, not just two
-                num_c = len(shifted_colors)
-                idx_f = wave * (num_c - 1)
-                ci_lo = int(idx_f)
-                ci_hi = min(ci_lo + 1, num_c - 1)
-                frac = idx_f - ci_lo
-                color = blend_colors(shifted_colors[ci_lo], shifted_colors[ci_hi], frac)
+        elif pattern == 'breathe':
+            pulse = math.sin(t * speed * 2.0) * 0.5 + 0.5
+            pulse = pulse ** 0.5
+            num_c = len(shifted_colors)
+            idx_f = x * (num_c - 1)
+            ci_lo = int(idx_f)
+            ci_hi = min(ci_lo + 1, num_c - 1)
+            frac = idx_f - ci_lo
+            base = blend_colors(shifted_colors[ci_lo], shifted_colors[ci_hi], frac)
+            color = apply_brightness(base, 0.15 + pulse * 0.85)
+        else:
+            color = shifted_colors[0]
 
-                # Stronger vertical variation with third color
-                if num_c > 2:
-                    vert = math.sin(y * math.pi * 1.5 - t * speed * 1.2) * 0.5 + 0.5
-                    color = blend_colors(color, shifted_colors[num_c - 1], vert * 0.4)
+        color = apply_brightness(color, brightness)
 
-            elif pattern == 'breathe':
-                # Breathing pulse with album colors — deeper range
-                pulse = math.sin(t * speed * 2.0) * 0.5 + 0.5
-                pulse = pulse ** 0.5  # Spend more time bright
-                num_c = len(shifted_colors)
-                # Sweep across colors based on position
-                idx_f = x * (num_c - 1)
-                ci_lo = int(idx_f)
-                ci_hi = min(ci_lo + 1, num_c - 1)
-                frac = idx_f - ci_lo
-                base = blend_colors(shifted_colors[ci_lo], shifted_colors[ci_hi], frac)
-                # Wider brightness range: 0.15 to 1.0
-                color = apply_brightness(base, 0.15 + pulse * 0.85)
+        # Twinkle overlay
+        if params.get('overlay') == 'twinkle':
+            sparkle = math.sin(t * 10 + lamp_idx * 1.7) * 0.5 + 0.5
+            if sparkle > 0.85:
+                color = (255, 255, 255)
 
-            else:
-                color = shifted_colors[0]
+        return rgb_to_hex(*color)
 
-            # Apply overall brightness
-            color = apply_brightness(color, brightness)
-
-            # Twinkle overlay — more frequent sparkles
-            if params.get('overlay') == 'twinkle':
-                sparkle = math.sin(t * 10 + lamp['idx'] * 1.7) * 0.5 + 0.5
-                if sparkle > 0.85:
-                    color = (255, 255, 255)
-
-            frame[str(lamp['idx'])] = rgb_to_hex(*color)
-
-        return frame
-
-    def render_beat_frame(self, t, params, beat_phase):
-        """Render a frame with beat-reactive pulse.
-
-        beat_phase: 0.0 = just hit a beat (bright flash), decays to 1.0 between beats.
-        """
+    def render_beat_lamp(self, x, y, t, params, beat_phase):
+        """Render beat-reactive color for a single lamp at normalized position (x, y)."""
         colors = params['colors']
         if not colors:
             colors = [(80, 80, 120)]
@@ -215,44 +186,29 @@ class SpotifySync:
         if color_shift:
             shifted_colors = [shift_color_temperature(c, color_shift) for c in colors]
 
-        # Beat pulse: sharp attack, exponential decay
-        # beat_phase 0.0 → 1.0 flash, 0.5 → 0.25, 1.0 → dim
-        pulse = max(0.0, 1.0 - beat_phase * 1.8)  # Quick decay
-        pulse = pulse ** 0.5  # Soften the curve slightly
-        dim = 0.08  # Floor brightness between beats
+        pulse = max(0.0, 1.0 - beat_phase * 1.8)
+        pulse = pulse ** 0.5
+        dim = 0.08
         brightness = dim + pulse * (1.0 - dim)
 
-        # Color index shifts on each beat for variety
         beat_count = int(t * 2) % len(shifted_colors)
 
-        frame = {}
-        for lamp in LAMPS:
-            x, y = lamp['x'], lamp['y']
+        cx, cy = 0.5, 0.5
+        dist = math.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+        max_dist = math.sqrt(0.5 ** 2 + 0.5 ** 2)
+        norm_dist = dist / max_dist
 
-            # Radial burst from center on beat
-            cx, cy = 0.5, 0.5
-            dist = math.sqrt((x - cx) ** 2 + (y - cy) ** 2)
-            max_dist = math.sqrt(0.5 ** 2 + 0.5 ** 2)
-            norm_dist = dist / max_dist
+        ripple = max(0.0, 1.0 - abs(norm_dist - beat_phase * 0.8) * 4.0)
 
-            # Ripple: beat expands outward
-            ripple = max(0.0, 1.0 - abs(norm_dist - beat_phase * 0.8) * 4.0)
+        num_c = len(shifted_colors)
+        ci = (int(norm_dist * num_c) + beat_count) % num_c
+        ci2 = (ci + 1) % num_c
+        frac = (norm_dist * num_c) % 1.0
+        base = blend_colors(shifted_colors[ci], shifted_colors[ci2], frac)
 
-            # Pick color based on distance from center + beat shift
-            num_c = len(shifted_colors)
-            ci = (int(norm_dist * num_c) + beat_count) % num_c
-            ci2 = (ci + 1) % num_c
-            frac = (norm_dist * num_c) % 1.0
-            base = blend_colors(shifted_colors[ci], shifted_colors[ci2], frac)
-
-            # Combine: overall pulse + ripple ring
-            local_brightness = brightness + ripple * 0.5
-            local_brightness = min(1.0, local_brightness)
-
-            color = apply_brightness(base, local_brightness)
-            frame[str(lamp['idx'])] = rgb_to_hex(*color)
-
-        return frame
+        local_brightness = min(1.0, brightness + ripple * 0.5)
+        color = apply_brightness(base, local_brightness)
+        return rgb_to_hex(*color)
 
     def write_overlay_palette(self, colors, mood, track_name):
         """Write album palette to file for overlay mode."""
@@ -284,6 +240,12 @@ class SpotifySync:
 
         if not self.overlay:
             self.start_driver()
+
+            # Discover all connected devices
+            print("🔍 Discovering devices...")
+            self.dm = DeviceManager(self.send, self.recv)
+            self.dm.discover()
+
             effect_name = "Spotify Beat Sync" if self.beat_sync else "Spotify Sync"
             self.send(f'SET_EFFECT_NAME {effect_name}')
             self.recv()
@@ -367,7 +329,7 @@ class SpotifySync:
                         self.recv()
 
                 # Render frames in replace mode
-                if not self.overlay and self.current_params:
+                if not self.overlay and self.current_params and self.dm:
                     if self.beat_sync and self.beat_detector:
                         # Beat-sync mode: render at ~30fps, pulse on beats
                         last_beat = time.time()
@@ -377,14 +339,16 @@ class SpotifySync:
                             now = time.time()
                             t = now - start_time
 
-                            # Check for new beat
                             if self.beat_detector.wait_for_beat(timeout=0.001):
                                 last_beat = now
 
-                            beat_phase = min(1.0, (now - last_beat) / 0.5)  # 0.5s decay
-                            frame = self.render_beat_frame(t, self.current_params, beat_phase)
-                            self.send(f"SET_LAMPS {json.dumps(frame, separators=(",", ":"))}")
-                            self.recv()
+                            beat_phase = min(1.0, (now - last_beat) / 0.5)
+                            params = self.current_params
+                            self.dm.send_frame_all(
+                                lambda dev, lamp: self.render_beat_lamp(
+                                    lamp['x'], lamp['y'], t, params, beat_phase
+                                )
+                            )
                             frame_count += 1
                             target = frame_count / 30.0
                             elapsed = now - start_time
@@ -396,9 +360,12 @@ class SpotifySync:
                             if not self.running:
                                 break
                             t = time.time() - start_time
-                            frame = self.render_frame(t, self.current_params)
-                            self.send(f"SET_LAMPS {json.dumps(frame, separators=(",", ":"))}")
-                            self.recv()
+                            params = self.current_params
+                            self.dm.send_frame_all(
+                                lambda dev, lamp: self.render_lamp(
+                                    lamp['x'], lamp['y'], lamp['idx'], t, params
+                                )
+                            )
                             frame_count += 1
                             target = frame_count / 8.0
                             elapsed = time.time() - start_time

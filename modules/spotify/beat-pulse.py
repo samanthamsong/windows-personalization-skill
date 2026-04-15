@@ -1,8 +1,10 @@
 """
 Standalone beat-pulse lighting — no Spotify needed.
 
-Pulses keyboard lighting to the beat of whatever audio is playing on
-the system (any app, any source). Just pick a color.
+Pulses ALL connected RGB devices to the beat of whatever audio is playing
+on the system (any app, any source). Just pick a color.
+
+Works with keyboards, mice, headsets, mousepads — any Dynamic Lighting device.
 
 Usage:
     python beat-pulse.py pink
@@ -28,25 +30,12 @@ sys.path.insert(0, MODULE_DIR)
 
 from color_extract import rgb_to_hex
 from mood_mapper import apply_brightness, blend_colors
+from device_manager import DeviceManager
 
 # Driver exe path
 DRIVER_EXE = os.path.join(MODULE_DIR, '..', 'dynamic-lighting', 'src',
                           'DynamicLightingDriver', 'bin', 'Debug',
                           'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe')
-
-# Keyboard layout (same as other effects)
-ROWS = [15, 15, 15, 14, 13, 8, 7]
-ROW_OFFSETS = [0, 0, 0.075, 0.12, 0.15, 0, 0.85]
-ROW_KW = [1, 1, 1, 1, 1, 1.5, 1]
-
-LAMPS = []
-idx = 0
-for ri, count in enumerate(ROWS):
-    for ci in range(count):
-        x = (ROW_OFFSETS[ri] + ci * ROW_KW[ri]) / 15.0
-        y = ri / 6.0
-        LAMPS.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
-        idx += 1
 
 # Named color map
 COLOR_MAP = {
@@ -92,50 +81,41 @@ def parse_color(s):
     return (255, 105, 180)
 
 
-def render_beat_frame(t, primary, secondary, beat_phase, volume):
-    """Render one frame of the beat pulse effect.
+def render_lamp_color(x, y, t, primary, secondary, beat_phase, volume):
+    """Render color for a single lamp at normalized position (x, y).
 
-    beat_phase: 0.0 = just hit a beat (bright flash), decays to 1.0.
-    volume: 0.0–1.0 current audio level for continuous reactivity.
+    Works for any device — keyboard, mouse, headset, mousepad.
     """
     # Volume-reactive base brightness — always follows the music
-    vol_brightness = 0.05 + volume * 0.85  # 5% floor, scales with volume
+    vol_brightness = 0.05 + volume * 0.85
 
     # Beat flash: extra burst on top of volume
     pulse = max(0.0, 1.0 - beat_phase * 2.0)
-    pulse = pulse ** 0.4  # Sharp attack
+    pulse = pulse ** 0.4
     beat_boost = pulse * 0.6
-
     brightness = min(1.0, vol_brightness + beat_boost)
 
-    # Color shift counter for variety
     beat_count = int(t * 2) % 2
 
-    frame = {}
-    for lamp in LAMPS:
-        x, y = lamp['x'], lamp['y']
+    # Radial burst from center
+    cx, cy = 0.5, 0.5
+    dist = math.sqrt((x - cx) ** 2 + (y - cy) ** 2)
+    max_dist = math.sqrt(0.5 ** 2 + 0.5 ** 2)
+    norm_dist = dist / max_dist
 
-        # Radial burst from center
-        cx, cy = 0.5, 0.5
-        dist = math.sqrt((x - cx) ** 2 + (y - cy) ** 2)
-        max_dist = math.sqrt(0.5 ** 2 + 0.5 ** 2)
-        norm_dist = dist / max_dist
+    # Ripple ring expanding outward on beat
+    ripple = max(0.0, 1.0 - abs(norm_dist - beat_phase * 0.8) * 4.0)
 
-        # Ripple ring expanding outward on beat
-        ripple = max(0.0, 1.0 - abs(norm_dist - beat_phase * 0.8) * 4.0)
+    # Blend primary ↔ secondary based on distance
+    if secondary:
+        frac = (norm_dist + beat_count * 0.5) % 1.0
+        base = blend_colors(primary, secondary, frac)
+    else:
+        base = primary
 
-        # Blend primary ↔ secondary based on distance
-        if secondary:
-            frac = (norm_dist + beat_count * 0.5) % 1.0
-            base = blend_colors(primary, secondary, frac)
-        else:
-            base = primary
-
-        local_brightness = min(1.0, brightness + ripple * 0.5)
-        color = apply_brightness(base, local_brightness)
-        frame[str(lamp['idx'])] = rgb_to_hex(*color)
-
-    return frame
+    local_brightness = min(1.0, brightness + ripple * 0.5)
+    color = apply_brightness(base, local_brightness)
+    return rgb_to_hex(*color)
 
 
 class BeatPulse:
@@ -146,6 +126,7 @@ class BeatPulse:
         self.cooldown = cooldown
         self.running = False
         self.proc = None
+        self.dm = None
         self.beat_detector = None
 
     def start_driver(self):
@@ -181,6 +162,15 @@ class BeatPulse:
     def run(self):
         self.start_driver()
 
+        # Discover all connected devices
+        print("🔍 Discovering devices...")
+        self.dm = DeviceManager(self.send, self.recv)
+        self.dm.discover()
+
+        if not self.dm.devices:
+            print("ERROR: No Dynamic Lighting devices found")
+            sys.exit(1)
+
         # Set effect name
         color_name = next(
             (name for name, rgb in COLOR_MAP.items()
@@ -210,7 +200,8 @@ class BeatPulse:
         sec_str = f" + {rgb_to_hex(*self.secondary)}" if self.secondary else ""
         print(f"🎨 Color: {rgb_to_hex(*self.primary)}{sec_str}")
         print(f"🔊 Sensitivity: {self.sensitivity}, Cooldown: {self.cooldown}s")
-        print(f"💡 Pulsing to the beat — play any music! (Ctrl+C to stop)")
+        device_count = len(self.dm.devices)
+        print(f"💡 Pulsing {device_count} device(s) to the beat — play any music! (Ctrl+C to stop)")
         print()
 
         frame_count = 0
@@ -227,9 +218,14 @@ class BeatPulse:
 
                 beat_phase = min(1.0, (now - last_beat) / 0.5)
                 volume = self.beat_detector.current_peak
-                frame = render_beat_frame(t, self.primary, self.secondary, beat_phase, volume)
-                self.send(f"SET_LAMPS {json.dumps(frame, separators=(',', ':'))}")
-                self.recv()
+
+                # Render to all devices using normalized coordinates
+                primary, secondary = self.primary, self.secondary
+                self.dm.send_frame_all(
+                    lambda dev, lamp: render_lamp_color(
+                        lamp['x'], lamp['y'], t, primary, secondary, beat_phase, volume
+                    )
+                )
 
                 frame_count += 1
                 target = frame_count / 30.0
