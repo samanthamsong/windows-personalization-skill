@@ -275,6 +275,17 @@ class SpotifySync:
                         self.write_overlay_palette(self.current_colors, mood,
                                                    f"{track['name']} - {track['artist']}")
 
+                    # Send track info to driver UI panel
+                    if not self.overlay and self.proc:
+                        spotify_data = json.dumps({
+                            "track": track['name'],
+                            "artist": track['artist'],
+                            "mood": mood,
+                            "colors": [rgb_to_hex(*c) for c in self.current_colors[:5]],
+                        }, separators=(',', ':'))
+                        self.send(f"SET_SPOTIFY {spotify_data}")
+                        self.recv()
+
                 # Render frames in replace mode
                 if not self.overlay and self.current_params:
                     # Run ~8fps for 3 seconds, then re-poll Spotify
@@ -304,6 +315,8 @@ class SpotifySync:
                 os.remove(PID_FILE)
             if self.proc:
                 try:
+                    self.send('CLEAR_SPOTIFY')
+                    self.recv()
                     self.send('QUIT')
                 except Exception:
                     pass

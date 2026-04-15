@@ -70,6 +70,7 @@ public sealed class LightingWindow : IDisposable
     private Panel? _titlePanel;
     private Label? _themeToggle;
     private Label? _hideToggle;
+    private Label? _musicToggle;
     private NotifyIcon? _trayIcon;
     private Thread? _uiThread;
     private readonly ManualResetEventSlim _ready = new();
@@ -78,6 +79,17 @@ public sealed class LightingWindow : IDisposable
     private System.Windows.Forms.Timer? _retryTimer;
     private int _retryCount;
     private volatile bool _holdForeground;
+
+    // Spotify panel controls
+    private Panel? _spotifyPanel;
+    private Label? _spotifyTrackLabel;
+    private Label? _spotifyArtistLabel;
+    private Label? _spotifyMoodLabel;
+    private Panel? _spotifyColorsPanel;
+    private bool _spotifyPanelVisible;
+    private bool _hasSpotifyData;
+    private const int BASE_HEIGHT = 180;
+    private const int SPOTIFY_PANEL_HEIGHT = 90;
 
     /// <summary>
     /// Custom Form subclass (needed for designer serialization of HoldForeground property).
@@ -360,7 +372,143 @@ public sealed class LightingWindow : IDisposable
                 _hideToggle.ForeColor = textDim;
                 _hideToggle.BackColor = bgColor;
             }
+            if (_musicToggle is not null)
+            {
+                _musicToggle.ForeColor = _hasSpotifyData
+                    ? System.Drawing.Color.FromArgb(30, 215, 96) // Spotify green when active
+                    : textDim;
+                _musicToggle.BackColor = bgColor;
+            }
+            ApplySpotifyPanelTheme(bgColor, textPrimary, textSecondary);
         });
+    }
+
+    /// <summary>
+    /// Updates the Spotify "now playing" panel with track info.
+    /// Called by the SET_SPOTIFY command when the Python sync script sends track data.
+    /// </summary>
+    public void SetSpotifyData(string track, string artist, string mood, string[] hexColors)
+    {
+        if (_form is null || _form.IsDisposed) return;
+        _form.BeginInvoke(() =>
+        {
+            _hasSpotifyData = true;
+
+            if (_spotifyTrackLabel is not null)
+                _spotifyTrackLabel.Text = $"🎵 {track}";
+            if (_spotifyArtistLabel is not null)
+                _spotifyArtistLabel.Text = artist;
+            if (_spotifyMoodLabel is not null)
+                _spotifyMoodLabel.Text = mood.Length > 0 ? $"✦ {mood}" : "";
+
+            // Update color swatches
+            if (_spotifyColorsPanel is not null)
+            {
+                _spotifyColorsPanel.Controls.Clear();
+                int swatchX = 0;
+                foreach (var hex in hexColors)
+                {
+                    try
+                    {
+                        var c = System.Drawing.ColorTranslator.FromHtml(hex.StartsWith("#") ? hex : $"#{hex}");
+                        var swatch = new Panel
+                        {
+                            Size = new System.Drawing.Size(18, 18),
+                            Location = new System.Drawing.Point(swatchX, 0),
+                            BackColor = c,
+                        };
+                        // Round the swatch
+                        var swatchPath = new System.Drawing.Drawing2D.GraphicsPath();
+                        swatchPath.AddEllipse(0, 0, 18, 18);
+                        swatch.Region = new System.Drawing.Region(swatchPath);
+                        _spotifyColorsPanel.Controls.Add(swatch);
+                        swatchX += 24;
+                    }
+                    catch { /* skip bad hex */ }
+                }
+            }
+
+            // Light up the music toggle
+            if (_musicToggle is not null)
+                _musicToggle.ForeColor = System.Drawing.Color.FromArgb(30, 215, 96); // Spotify green
+
+            // Auto-show the panel if it was hidden
+            if (!_spotifyPanelVisible)
+                ToggleSpotifyPanel();
+        });
+    }
+
+    /// <summary>
+    /// Hides the Spotify panel and clears track data.
+    /// Called by the CLEAR_SPOTIFY command when sync stops.
+    /// </summary>
+    public void ClearSpotifyData()
+    {
+        if (_form is null || _form.IsDisposed) return;
+        _form.BeginInvoke(() =>
+        {
+            _hasSpotifyData = false;
+
+            if (_spotifyTrackLabel is not null) _spotifyTrackLabel.Text = "";
+            if (_spotifyArtistLabel is not null) _spotifyArtistLabel.Text = "";
+            if (_spotifyMoodLabel is not null) _spotifyMoodLabel.Text = "";
+            if (_spotifyColorsPanel is not null) _spotifyColorsPanel.Controls.Clear();
+
+            // Dim the music toggle
+            var textDim = _isLightMode
+                ? System.Drawing.Color.FromArgb(130, 130, 140)
+                : System.Drawing.Color.FromArgb(100, 100, 110);
+            if (_musicToggle is not null) _musicToggle.ForeColor = textDim;
+
+            // Hide the panel
+            if (_spotifyPanelVisible)
+                ToggleSpotifyPanel();
+        });
+    }
+
+    private void ToggleSpotifyPanel()
+    {
+        if (_form is null || _form.IsDisposed || _spotifyPanel is null) return;
+
+        _spotifyPanelVisible = !_spotifyPanelVisible;
+        _spotifyPanel.Visible = _spotifyPanelVisible;
+
+        var newHeight = _spotifyPanelVisible ? BASE_HEIGHT + SPOTIFY_PANEL_HEIGHT : BASE_HEIGHT;
+        _form.Height = newHeight;
+
+        // Rebuild rounded corners for new height
+        var radius = 16;
+        var path = new System.Drawing.Drawing2D.GraphicsPath();
+        path.AddArc(0, 0, radius, radius, 180, 90);
+        path.AddArc(_form.Width - radius, 0, radius, radius, 270, 90);
+        path.AddArc(_form.Width - radius, newHeight - radius, radius, radius, 0, 90);
+        path.AddArc(0, newHeight - radius, radius, radius, 90, 90);
+        path.CloseFigure();
+        _form.Region = new System.Drawing.Region(path);
+    }
+
+    private void ApplySpotifyPanelTheme(System.Drawing.Color bg, System.Drawing.Color textPrimary, System.Drawing.Color textSecondary)
+    {
+        if (_spotifyPanel is not null) _spotifyPanel.BackColor = bg;
+        if (_spotifyTrackLabel is not null)
+        {
+            _spotifyTrackLabel.ForeColor = textPrimary;
+            _spotifyTrackLabel.BackColor = bg;
+        }
+        if (_spotifyArtistLabel is not null)
+        {
+            _spotifyArtistLabel.ForeColor = textSecondary;
+            _spotifyArtistLabel.BackColor = bg;
+        }
+        if (_spotifyMoodLabel is not null)
+        {
+            _spotifyMoodLabel.ForeColor = System.Drawing.Color.FromArgb(30, 215, 96);
+            _spotifyMoodLabel.BackColor = bg;
+        }
+        if (_spotifyColorsPanel is not null)
+        {
+            _spotifyColorsPanel.BackColor = bg;
+        }
     }
 
     private void RunUIThread()
@@ -466,8 +614,28 @@ public sealed class LightingWindow : IDisposable
             _form.ShowInTaskbar = false;
         };
 
+        _musicToggle = new Label
+        {
+            Text = "🎵",
+            AutoSize = false,
+            Height = 28,
+            Width = 36,
+            Dock = DockStyle.Right,
+            TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+            Font = new System.Drawing.Font("Segoe UI", 12f),
+            ForeColor = textDim,
+            BackColor = bgColor,
+            Cursor = Cursors.Hand,
+        };
+        _musicToggle.Click += (s, e) =>
+        {
+            if (_hasSpotifyData)
+                ToggleSpotifyPanel();
+        };
+
         _titlePanel.Controls.Add(_titleLabel);
         _titlePanel.Controls.Add(_hideToggle);
+        _titlePanel.Controls.Add(_musicToggle);
         _titlePanel.Controls.Add(_themeToggle);
 
         // Effect name — large and prominent
@@ -518,10 +686,88 @@ public sealed class LightingWindow : IDisposable
         };
         _bottomPanel.Controls.Add(_statusLabel);
 
+        // Spotify "now playing" panel — hidden by default, shown via music toggle
+        _spotifyPanel = new Panel
+        {
+            Height = SPOTIFY_PANEL_HEIGHT,
+            Dock = DockStyle.Top,
+            BackColor = bgColor,
+            Visible = false,
+            Padding = new Padding(16, 4, 16, 4),
+        };
+
+        // Thin separator line at top of Spotify panel
+        var spotifySep = new Panel
+        {
+            Height = 1,
+            Dock = DockStyle.Top,
+            BackColor = System.Drawing.Color.FromArgb(50, 50, 58),
+        };
+
+        _spotifyTrackLabel = new Label
+        {
+            Text = "",
+            AutoSize = false,
+            Height = 24,
+            Dock = DockStyle.Top,
+            TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+            Font = new System.Drawing.Font("Segoe UI Semibold", 10f, System.Drawing.FontStyle.Bold),
+            ForeColor = textPrimary,
+            BackColor = bgColor,
+            Padding = new Padding(0, 4, 0, 0),
+        };
+
+        _spotifyArtistLabel = new Label
+        {
+            Text = "",
+            AutoSize = false,
+            Height = 20,
+            Dock = DockStyle.Top,
+            TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+            Font = new System.Drawing.Font("Segoe UI", 9f),
+            ForeColor = textSecondary,
+            BackColor = bgColor,
+        };
+
+        var spotifyBottomRow = new Panel
+        {
+            Height = 28,
+            Dock = DockStyle.Top,
+            BackColor = bgColor,
+        };
+
+        _spotifyMoodLabel = new Label
+        {
+            Text = "",
+            AutoSize = true,
+            Font = new System.Drawing.Font("Segoe UI", 8.5f),
+            ForeColor = System.Drawing.Color.FromArgb(30, 215, 96),
+            BackColor = bgColor,
+            Location = new System.Drawing.Point(0, 4),
+        };
+
+        _spotifyColorsPanel = new Panel
+        {
+            Height = 20,
+            Width = 150,
+            Location = new System.Drawing.Point(180, 2),
+            BackColor = bgColor,
+        };
+
+        spotifyBottomRow.Controls.Add(_spotifyMoodLabel);
+        spotifyBottomRow.Controls.Add(_spotifyColorsPanel);
+
+        // Add to Spotify panel in reverse dock order
+        _spotifyPanel.Controls.Add(spotifyBottomRow);
+        _spotifyPanel.Controls.Add(_spotifyArtistLabel);
+        _spotifyPanel.Controls.Add(_spotifyTrackLabel);
+        _spotifyPanel.Controls.Add(spotifySep);
+
         // Hidden status label for backwards compatibility (UpdateStatus still sets it)
         // The visible UI is driven by _effectLabel and _detailLabel
 
         // Add controls in reverse dock order (top = last added docks first)
+        _form.Controls.Add(_spotifyPanel);
         _form.Controls.Add(_bottomPanel);
         _form.Controls.Add(_detailLabel);
         _form.Controls.Add(_effectLabel);

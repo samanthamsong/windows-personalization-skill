@@ -55,6 +55,8 @@ public sealed class CommandHandler
                 "SET_LAMPS" => await HandleSetLamps(args),
                 "SET_EFFECT_NAME" => HandleSetEffectName(args),
                 "SET_THEME" => HandleSetTheme(args),
+                "SET_SPOTIFY" => HandleSetSpotify(args),
+                "CLEAR_SPOTIFY" => HandleClearSpotify(),
                 "LIST_DEVICES" => await HandleListDevices(),
                 "GET_LAYOUT" => await HandleGetLayout(),
                 "DIAGNOSE" => await HandleDiagnose(),
@@ -495,6 +497,51 @@ public sealed class CommandHandler
             return "ERROR Expected 'light' or 'dark'";
         _window.SetTheme(theme == "light");
         return $"OK {theme}";
+    }
+
+    // -----------------------------------------------------------------------
+    // SET_SPOTIFY <json>
+    // Expects: {"track":"...", "artist":"...", "mood":"...", "colors":["#hex",...]}
+    // -----------------------------------------------------------------------
+    private string HandleSetSpotify(string args)
+    {
+        if (string.IsNullOrWhiteSpace(args))
+            return "ERROR JSON payload required";
+
+        try
+        {
+            using var doc = JsonDocument.Parse(args);
+            var root = doc.RootElement;
+
+            var track = root.TryGetProperty("track", out var t) ? t.GetString() ?? "" : "";
+            var artist = root.TryGetProperty("artist", out var a) ? a.GetString() ?? "" : "";
+            var mood = root.TryGetProperty("mood", out var m) ? m.GetString() ?? "" : "";
+
+            var colors = Array.Empty<string>();
+            if (root.TryGetProperty("colors", out var c) && c.ValueKind == JsonValueKind.Array)
+            {
+                colors = c.EnumerateArray()
+                    .Select(v => v.GetString() ?? "")
+                    .Where(s => s.Length > 0)
+                    .ToArray();
+            }
+
+            _window.SetSpotifyData(track, artist, mood, colors);
+            return $"OK spotify: {track}";
+        }
+        catch (JsonException ex)
+        {
+            return $"ERROR Invalid JSON: {ex.Message}";
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // CLEAR_SPOTIFY
+    // -----------------------------------------------------------------------
+    private string HandleClearSpotify()
+    {
+        _window.ClearSpotifyData();
+        return "OK spotify cleared";
     }
 
     // -----------------------------------------------------------------------
