@@ -55,20 +55,29 @@ def _search_unsplash(query: str, dest: str) -> bool:
 
 def _set_wallpaper_win32(path: str) -> bool:
     """Set wallpaper using PowerShell + SystemParametersInfo (more reliable than ctypes)."""
-    ps_script = f'''
-Set-ItemProperty -Path "HKCU:\\Control Panel\\Desktop" -Name WallpaperStyle -Value "10"
-Set-ItemProperty -Path "HKCU:\\Control Panel\\Desktop" -Name TileWallpaper -Value "0"
-Add-Type -TypeDefinition @"
+    # Validate path to prevent injection — must be an existing file with image extension
+    import os.path as osp
+    if not osp.isabs(path) or not osp.exists(path):
+        return False
+    allowed_ext = {'.jpg', '.jpeg', '.png', '.bmp', '.gif', '.tif', '.tiff'}
+    if osp.splitext(path)[1].lower() not in allowed_ext:
+        return False
+    # Escape single quotes for PowerShell string literal
+    safe_path = path.replace("'", "''")
+    ps_script = f"""
+Set-ItemProperty -Path 'HKCU:\\Control Panel\\Desktop' -Name WallpaperStyle -Value '10'
+Set-ItemProperty -Path 'HKCU:\\Control Panel\\Desktop' -Name TileWallpaper -Value '0'
+Add-Type -TypeDefinition @'
 using System;
 using System.Runtime.InteropServices;
 public class WpApply {{
     [DllImport("user32.dll", CharSet = CharSet.Unicode)]
     public static extern int SystemParametersInfo(int uAction, int uParam, string lpvParam, int fuWinIni);
 }}
-"@
-$r = [WpApply]::SystemParametersInfo(0x0014, 0, "{path}", 3)
-if ($r -eq 1) {{ Write-Output "OK" }} else {{ Write-Output "FAIL" }}
-'''
+'@
+$r = [WpApply]::SystemParametersInfo(0x0014, 0, '{safe_path}', 3)
+if ($r -eq 1) {{ Write-Output 'OK' }} else {{ Write-Output 'FAIL' }}
+"""
     try:
         import subprocess
         result = subprocess.run(

@@ -160,63 +160,84 @@ def apply_theme(spec: dict) -> dict:
         print(f"\n🔆 RGB lighting...")
         if check_lighting():
             dl_style = spec.get("dl_style", "wave")
-            palette_arg = ",".join(dl_palette)
 
-            # Launch lighting via PowerShell Start-Process so it's fully detached
-            lighting_script = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "lighting_handler.py"
-            )
-            try:
-                # Stop any existing lighting first
-                stop_lighting()
+            # Validate palette colors (prevent injection)
+            import re
+            hex_pattern = re.compile(r'^#[0-9A-Fa-f]{6}$')
+            valid_styles = {'wave', 'breathe', 'shimmer', 'static', 'pulse'}
 
-                # Use Start-Process to launch a fully independent process
-                # Python runs hidden; the DL driver creates its own foreground window
-                ps_cmd = (
-                    f'$env:PYTHONIOENCODING = "utf-8"; '
-                    f'Start-Process -FilePath "{sys.executable}" '
-                    f'-ArgumentList @("{lighting_script}", "--palette", "{palette_arg}", "--style", "{dl_style}") '
-                    f'-WindowStyle Hidden'
-                )
-                result = subprocess.run(
-                    ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_cmd],
-                    capture_output=True, text=True, timeout=10
-                )
+            dl_palette = [c for c in dl_palette if hex_pattern.match(c)]
+            if dl_style not in valid_styles:
+                dl_style = "wave"
 
-                # Wait briefly for startup
-                import time
-                time.sleep(3)
-
-                # Check if the PID file was created (indicates successful start)
-                pid_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                        '.theme-lighting.pid')
-                if os.path.exists(pid_file):
-                    with open(pid_file) as f:
-                        pid = f.read().strip()
-                    colors_str = ', '.join(dl_palette[:3])
-                    results["components"]["lighting"] = {
-                        "success": True,
-                        "message": f"{dl_style.capitalize()} effect running ({colors_str})",
-                        "pid": int(pid)
-                    }
-                    print(f"   ✅ {dl_style.capitalize()} effect started (PID {pid})")
-                else:
-                    results["components"]["lighting"] = {
-                        "success": False,
-                        "message": "Lighting process started but no PID file created"
-                    }
-                    print(f"   ❌ Lighting failed to initialize")
-            except Exception as e:
+            if not dl_palette:
                 results["components"]["lighting"] = {
-                    "success": False, "message": f"Failed to start lighting: {e}"
+                    "success": False, "message": "No valid colors in dl_palette"
                 }
-                print(f"   ❌ {e}")
-            except Exception as e:
-                results["components"]["lighting"] = {
-                    "success": False, "message": f"Failed to start lighting: {e}"
-                }
-                print(f"   ❌ {e}")
+                print(f"   ❌ No valid hex colors in palette")
+            else:
+                palette_arg = ",".join(dl_palette)
+
+                lighting_script = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    "lighting_handler.py"
+                )
+                try:
+                    # Stop any existing lighting first
+                    stop_lighting()
+
+                    # Launch as a detached process — pass args as a list (no shell interpolation)
+                    env = os.environ.copy()
+                    env["PYTHONIOENCODING"] = "utf-8"
+                    import subprocess as sp
+                    proc = sp.Popen(
+                        [sys.executable, lighting_script,
+                         "--palette", palette_arg, "--style", dl_style],
+                        stdout=sp.DEVNULL, stderr=sp.DEVNULL,
+                        creationflags=sp.CREATE_NEW_PROCESS_GROUP | sp.DETACHED_PROCESS,
+                        env=env
+                    )
+
+                    # Wait briefly for startup
+                    import time
+                    time.sleep(3)
+
+                    # Check if the PID file was created and process is alive
+                    pid_file = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                            '.theme-lighting.pid')
+                    if os.path.exists(pid_file):
+                        try:
+                            with open(pid_file) as f:
+                                pid = int(f.read().strip())
+                            os.kill(pid, 0)  # check process is alive (signal 0 = no-op)
+                        except (ValueError, OSError):
+                            pid = None
+
+                        if pid:
+                            colors_str = ', '.join(dl_palette[:3])
+                            results["components"]["lighting"] = {
+                                "success": True,
+                                "message": f"{dl_style.capitalize()} effect running ({colors_str})",
+                                "pid": pid
+                            }
+                            print(f"   ✅ {dl_style.capitalize()} effect started (PID {pid})")
+                        else:
+                            results["components"]["lighting"] = {
+                                "success": False,
+                                "message": "Lighting process exited immediately"
+                            }
+                            print(f"   ❌ Lighting process died after start")
+                    else:
+                        results["components"]["lighting"] = {
+                            "success": False,
+                            "message": "Lighting process started but no PID file created"
+                        }
+                        print(f"   ❌ Lighting failed to initialize")
+                except Exception as e:
+                    results["components"]["lighting"] = {
+                        "success": False, "message": f"Failed to start lighting: {e}"
+                    }
+                    print(f"   ❌ {e}")
         else:
             results["components"]["lighting"] = {
                 "success": False, "message": "DL driver not found"

@@ -410,8 +410,13 @@ def cmd_start(args):
 
 def cmd_stop():
     if os.path.exists(PID_FILE):
-        with open(PID_FILE, 'r') as f:
-            pid = int(f.read().strip())
+        try:
+            with open(PID_FILE, 'r') as f:
+                pid = int(f.read().strip())
+        except (ValueError, OSError):
+            print("⚠  Corrupt PID file, cleaning up")
+            os.remove(PID_FILE)
+            return
         try:
             os.kill(pid, signal.SIGINT)
             print(f"⏹  Sent stop signal to Spotify sync (PID {pid})")
