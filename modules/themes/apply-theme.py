@@ -168,7 +168,7 @@ def apply_theme(spec: dict) -> dict:
             # Validate palette colors (prevent injection)
             import re
             hex_pattern = re.compile(r'^#[0-9A-Fa-f]{6}$')
-            valid_styles = {'wave', 'breathe', 'shimmer', 'static', 'pulse'}
+            valid_styles = {'wave', 'breathe', 'shimmer', 'static', 'pulse', 'droplet'}
 
             dl_palette = [c for c in dl_palette if hex_pattern.match(c)]
             if dl_style not in valid_styles:

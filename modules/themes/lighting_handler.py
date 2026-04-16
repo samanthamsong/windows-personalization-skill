@@ -131,12 +131,81 @@ def render_pulse(palette, device, lamp, t):
     return rgb_to_hex(color[0] * brightness, color[1] * brightness, color[2] * brightness)
 
 
+def render_droplet(palette, device, lamp, t):
+    """Water droplets landing on a pond — ripples expand and fade.
+
+    Base layer is a slow-drifting pond surface using the palette.
+    Random droplets appear and create concentric ripple rings that
+    expand outward and fade, like raindrops on still water.
+    """
+    # Base: slow drifting pond surface
+    pos = lamp['x'] * 0.6 + lamp['y'] * 0.4
+    base_phase = (pos + t * 0.06) % 1.0
+    color = palette_sample(palette, base_phase)
+
+    # Keep base vivid so pond colors come through
+    color = (color[0] * 0.8, color[1] * 0.8, color[2] * 0.8)
+
+    # Droplet parameters
+    droplet_interval = 0.9   # new droplet every 0.9s (frequent rain)
+    ripple_duration = 2.8    # each ripple lives 2.8s
+    max_active = int(ripple_duration / droplet_interval) + 2
+
+    ripple_brightness = 0.0
+    for i in range(max_active):
+        droplet_id = int(t / droplet_interval) - i
+        birth = droplet_id * droplet_interval
+        age = t - birth
+
+        if age < 0 or age > ripple_duration:
+            continue
+
+        # Deterministic pseudo-random position per droplet
+        seed = (droplet_id * 73856093 + 19349663) & 0x7FFFFFFF
+        dx = ((seed >> 4) & 0xFF) / 255.0
+        dy = ((seed >> 12) & 0xFF) / 255.0
+
+        # Distance from this lamp to the droplet center
+        dist = math.sqrt((lamp['x'] - dx) ** 2 + (lamp['y'] - dy) ** 2)
+
+        # Ripple expands outward over time
+        progress = age / ripple_duration
+        ripple_radius = progress * 1.0
+
+        # Primary ring — bright and sharp
+        ring_dist = abs(dist - ripple_radius)
+        ring_width = 0.08 + progress * 0.05
+        if ring_dist < ring_width:
+            fade = (1.0 - progress) ** 1.2
+            intensity = (1.0 - ring_dist / ring_width) * fade
+            ripple_brightness = max(ripple_brightness, intensity)
+
+        # Second ring trailing behind — softer
+        ring2_dist = abs(dist - max(0, ripple_radius - 0.12))
+        if ring2_dist < ring_width and progress > 0.15:
+            fade2 = (1.0 - progress) ** 1.5
+            intensity2 = (1.0 - ring2_dist / ring_width) * fade2 * 0.35
+            ripple_brightness = max(ripple_brightness, intensity2)
+
+        # Bright center splash at impact
+        if age < 0.5 and dist < 0.12:
+            splash = (1.0 - age / 0.5) * (1.0 - dist / 0.12)
+            ripple_brightness = max(ripple_brightness, splash)
+
+    # Blend ripple highlight — pure bright white for maximum contrast
+    if ripple_brightness > 0:
+        color = lerp_color(color, (255, 255, 255), ripple_brightness * 0.9)
+
+    return rgb_to_hex(*color)
+
+
 RENDERERS = {
     'wave': render_wave,
     'breathe': render_breathe,
     'shimmer': render_shimmer,
     'static': render_static,
     'pulse': render_pulse,
+    'droplet': render_droplet,
 }
 
 
