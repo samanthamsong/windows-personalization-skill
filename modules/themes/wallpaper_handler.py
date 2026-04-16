@@ -2,15 +2,27 @@
 Wallpaper handler — downloads a themed image and sets it as the desktop wallpaper.
 
 Uses ctypes to call SystemParametersInfoW for immediate wallpaper change.
-Falls back to Unsplash search if no direct URL is provided.
+Image sources (in priority order):
+  1. Direct URL (provided by agent)
+  2. Art museum search (Art Institute of Chicago IIIF API) — for paintings/art themes
+  3. Unsplash photo search — for nature/landscape/photo themes
 """
 
 import ctypes
 import os
+import re
 import sys
 
 PICTURES_DIR = os.path.join(os.path.expanduser("~"), "Pictures")
+THEMES_DIR = os.path.join(PICTURES_DIR, "themes")
 WALLPAPER_PATH = os.path.join(PICTURES_DIR, "theme-wallpaper.jpg")
+
+
+def _theme_cache_path(theme_name: str) -> str:
+    """Get a cache path for a named theme's wallpaper."""
+    safe = re.sub(r'[^\w\s-]', '', theme_name).strip().lower().replace(' ', '-')
+    os.makedirs(THEMES_DIR, exist_ok=True)
+    return os.path.join(THEMES_DIR, f"{safe}.jpg")
 
 
 def _download(url: str, dest: str) -> bool:
@@ -53,6 +65,50 @@ def _search_unsplash(query: str, dest: str) -> bool:
         return False
 
 
+def _search_art_museum(query: str, dest: str) -> bool:
+    """Search Art Institute of Chicago for artwork matching the query.
+
+    Uses their public API + IIIF image service. Great for finding actual
+    paintings, sculptures, and other fine art as wallpapers.
+    """
+    try:
+        import requests
+        import urllib.parse
+
+        encoded = urllib.parse.quote(query)
+        api_url = (
+            f"https://api.artic.edu/api/v1/artworks/search"
+            f"?q={encoded}&fields=id,title,image_id,artist_title"
+            f"&limit=5"
+        )
+        resp = requests.get(api_url, timeout=10, headers={
+            "User-Agent": "WindowsPersonalizationSkill/1.0"
+        })
+        if resp.status_code != 200:
+            return False
+
+        data = resp.json().get("data", [])
+        iiif_base = resp.json().get("config", {}).get("iiif_url", "https://www.artic.edu/iiif/2")
+
+        # Try each result until we get a good image
+        for artwork in data:
+            image_id = artwork.get("image_id")
+            if not image_id:
+                continue
+            title = artwork.get("title", "unknown")
+            artist = artwork.get("artist_title", "unknown")
+            # Request max resolution via IIIF
+            img_url = f"{iiif_base}/{image_id}/full/max/0/default.jpg"
+            print(f"  🎨 Found: \"{title}\" by {artist}")
+            if _download(img_url, dest):
+                return True
+
+        return False
+    except Exception as e:
+        print(f"  Museum search failed: {e}", file=sys.stderr)
+        return False
+
+
 def _set_wallpaper_win32(path: str) -> bool:
     """Set wallpaper using PowerShell + SystemParametersInfo (more reliable than ctypes)."""
     # Validate path to prevent injection — must be an existing file with image extension
@@ -82,7 +138,8 @@ if ($r -eq 1) {{ Write-Output 'OK' }} else {{ Write-Output 'FAIL' }}
         import subprocess
         result = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script],
-            capture_output=True, text=True, timeout=10
+            capture_output=True, text=True, timeout=10,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         return "OK" in result.stdout
     except Exception:
@@ -90,27 +147,50 @@ if ($r -eq 1) {{ Write-Output 'OK' }} else {{ Write-Output 'FAIL' }}
 
 
 def apply_wallpaper(url: str = None, search_query: str = None,
-                    dest: str = WALLPAPER_PATH) -> dict:
+                    art_search: str = None,
+                    dest: str = WALLPAPER_PATH,
+                    theme_name: str = None) -> dict:
     """Download and set a themed wallpaper.
 
     Args:
         url: Direct URL to wallpaper image (preferred)
-        search_query: Unsplash search query (fallback if no URL)
+        search_query: Unsplash search query (fallback for photos)
+        art_search: Art museum search query (fallback for paintings/fine art)
         dest: Local path to save the image
+        theme_name: If provided, caches wallpaper per theme for reuse
 
     Returns:
         dict with 'success' bool and 'message' string
     """
+    # Check cache first — reuse wallpaper if this theme was applied before
+    cache_path = _theme_cache_path(theme_name) if theme_name else None
+    if cache_path and os.path.exists(cache_path) and os.path.getsize(cache_path) > 5000:
+        print(f"  ♻ Using cached wallpaper for '{theme_name}'")
+        import shutil
+        shutil.copy2(cache_path, dest)
+        if _set_wallpaper_win32(dest):
+            size_kb = os.path.getsize(dest) // 1024
+            return {
+                "success": True,
+                "message": f"Wallpaper set from cache ({size_kb}KB, Fill mode)"
+            }
+
     downloaded = False
 
     # Try direct URL first
     if url:
         downloaded = _download(url, dest)
         if not downloaded:
-            print(f"  ⚠ Direct URL failed, trying Unsplash fallback...")
+            print(f"  ⚠ Direct URL failed, trying fallback search...")
 
-    # Fallback to Unsplash search
+    # Fallback: art museum search (for paintings, fine art)
+    if not downloaded and art_search:
+        print(f"  🖼️ Searching museum collections...")
+        downloaded = _search_art_museum(art_search, dest)
+
+    # Fallback: Unsplash search (for photos, landscapes, nature)
     if not downloaded and search_query:
+        print(f"  📷 Searching Unsplash photos...")
         downloaded = _search_unsplash(search_query, dest)
 
     if not downloaded:
@@ -125,6 +205,12 @@ def apply_wallpaper(url: str = None, search_query: str = None,
             "success": False,
             "message": "Downloaded file too small or missing — likely an error page"
         }
+
+    # Cache the wallpaper for this theme so it can be reused
+    if cache_path:
+        import shutil
+        shutil.copy2(dest, cache_path)
+        print(f"  💾 Cached wallpaper as '{os.path.basename(cache_path)}'")
 
     # Apply wallpaper
     if _set_wallpaper_win32(dest):

@@ -248,6 +248,7 @@ The agent generates this JSON from the user's natural language request:
     "name": "shrek",
     "wallpaper_url": "https://example.com/shrek-swamp.jpg",
     "wallpaper_search": "shrek ogre swamp green",
+    "art_search": "",
     "accent_color": "#4A7C2E",
     "mode": "dark",
     "taskbar_accent": true,
@@ -265,13 +266,17 @@ All fields are optional — the tool applies what it can and gracefully skips th
 |-------|------|-------------|
 | `name` | string | Theme name (for display) |
 | `wallpaper_url` | string | Direct URL to wallpaper image (preferred) |
-| `wallpaper_search` | string | Unsplash search query (fallback if URL fails) |
+| `wallpaper_search` | string | Unsplash photo search query (fallback for nature, landscapes, photos) |
+| `art_search` | string | Museum art search query (fallback for paintings, fine art, artists). Searches Art Institute of Chicago. |
 | `accent_color` | string | Hex color for Windows accent (`#RRGGBB`) |
 | `mode` | string | `"dark"` or `"light"` — sets both app and system theme |
 | `taskbar_accent` | bool | Show accent color on taskbar and Start menu |
 | `transparency` | bool | Enable transparency effects |
 | `dl_palette` | string[] | 2-6 hex colors for RGB lighting effect |
 | `dl_style` | string | `"wave"`, `"breathe"`, `"shimmer"`, `"static"`, or `"pulse"` |
+
+**Wallpaper source priority:** direct URL → museum art search → Unsplash photo search.
+Wallpapers are cached per theme name in `~/Pictures/themes/` so re-applying a theme reuses the same image.
 
 **Example Prompt Mappings:**
 
@@ -280,7 +285,9 @@ All fields are optional — the tool applies what it can and gracefully skips th
 | "Make everything shrek themed" | Generate spec with green accent, swamp wallpaper, dark mode, green DL palette → `apply-theme.py --spec '...'` |
 | "Studio Ghibli theme" | Generate spec with sky blue accent, Ghibli wallpaper, light mode, pastel DL palette |
 | "Make my PC look like the ocean" | Deep blue accent, ocean wallpaper, dark mode, blue DL wave effect |
-| "Pink aesthetic" | Pink accent, pink flower wallpaper, light mode, pink DL shimmer |
+| "Georgia O'Keeffe theme" | Use `art_search: "Georgia O'Keeffe"` to find actual paintings. Sandy/warm palette, dark mode, breathe effect |
+| "Monet water lilies theme" | Use `art_search: "Monet water lilies"` to find the painting. Green/blue palette, dark mode, wave effect |
+| "Pink aesthetic" | Pink accent, pink flower wallpaper (`wallpaper_search`), light mode, pink DL shimmer |
 | "Dark hacker theme" | Black/green accent, dark matrix wallpaper, dark mode, green DL pulse |
 | "Stop the theme lighting" | `python modules/themes/apply-theme.py --stop-lighting` |
 
@@ -288,7 +295,10 @@ All fields are optional — the tool applies what it can and gracefully skips th
 
 1. **Name**: Use the user's theme description
 2. **Colors**: Pick 1 accent color + 2-6 DL palette colors that match the theme. The accent color should be the dominant/primary color.
-3. **Wallpaper**: Find a wallpaper URL (Wikipedia, official sites, Unsplash). Always provide `wallpaper_search` as fallback.
+3. **Wallpaper**: Choose the right source based on the theme:
+   - **Art/painting themes** (e.g., "Monet", "Van Gogh", "O'Keeffe"): Use `art_search` with the artist name and optional painting title. This searches museum collections for actual artwork.
+   - **Photo themes** (e.g., "ocean", "forest", "sunset"): Use `wallpaper_search` for Unsplash photos.
+   - **Specific image**: Use `wallpaper_url` with a direct link. Always provide a fallback (`art_search` or `wallpaper_search`).
 4. **Mode**: Choose dark or light based on the theme mood (dark for moody/gaming/night themes, light for bright/cute/nature themes)
 5. **Taskbar**: Usually `true` for bold themes (Shrek green, ocean blue), `false` for subtle/light themes
 6. **DL style**: Match the theme mood — `wave` (flowing/natural), `breathe` (calm/ambient), `shimmer` (sparkly/magical), `static` (clean/minimal), `pulse` (energetic/gaming)

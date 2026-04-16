@@ -161,7 +161,8 @@ def stop_existing():
             ["powershell", "-NoProfile", "-NonInteractive", "-Command",
              'Get-Process -Name DynamicLightingDriver -ErrorAction SilentlyContinue | '
              'ForEach-Object { Stop-Process -Id $_.Id -Force; Write-Host "Killed driver PID $($_.Id)" }'],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, timeout=5,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         if result.stdout.strip():
             print(f"  {result.stdout.strip()}")

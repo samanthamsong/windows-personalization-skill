@@ -13,7 +13,8 @@ Theme Spec Format:
     {
         "name": "shrek",
         "wallpaper_url": "https://example.com/shrek.jpg",     # direct URL (preferred)
-        "wallpaper_search": "shrek ogre swamp wallpaper",     # Unsplash fallback
+        "wallpaper_search": "shrek ogre swamp wallpaper",     # Unsplash photo fallback
+        "art_search": "artist name painting title",           # museum art fallback
         "accent_color": "#4A7C2E",
         "mode": "dark",                    # "dark" or "light"
         "taskbar_accent": true,            # show accent on taskbar
@@ -111,7 +112,8 @@ def apply_theme(spec: dict) -> dict:
             ["powershell", "-NoProfile", "-NonInteractive", "-Command",
              'Get-Process -Name DynamicLightingDriver -ErrorAction SilentlyContinue | '
              'ForEach-Object { Stop-Process -Id $_.Id -Force }'],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, timeout=5,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
     except Exception:
         pass
@@ -119,9 +121,11 @@ def apply_theme(spec: dict) -> dict:
     # 1. Wallpaper
     wallpaper_url = spec.get("wallpaper_url")
     wallpaper_search = spec.get("wallpaper_search")
-    if wallpaper_url or wallpaper_search:
+    art_search = spec.get("art_search")
+    if wallpaper_url or wallpaper_search or art_search:
         print(f"\n🖼️  Wallpaper...")
-        result = apply_wallpaper(url=wallpaper_url, search_query=wallpaper_search)
+        result = apply_wallpaper(url=wallpaper_url, search_query=wallpaper_search,
+                                    art_search=art_search, theme_name=name)
         results["components"]["wallpaper"] = result
         icon = "✅" if result["success"] else "❌"
         print(f"   {icon} {result['message']}")
@@ -194,7 +198,7 @@ def apply_theme(spec: dict) -> dict:
                         [sys.executable, lighting_script,
                          "--palette", palette_arg, "--style", dl_style],
                         stdout=sp.DEVNULL, stderr=sp.DEVNULL,
-                        creationflags=sp.CREATE_NEW_PROCESS_GROUP | sp.DETACHED_PROCESS,
+                        creationflags=sp.CREATE_NEW_PROCESS_GROUP | sp.CREATE_NO_WINDOW,
                         env=env
                     )
 

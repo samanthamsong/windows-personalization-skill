@@ -124,7 +124,8 @@ Write-Output "OK"
     try:
         result = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script],
-            capture_output=True, text=True, timeout=20
+            capture_output=True, text=True, timeout=20,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         if result.returncode == 0 and "OK" in result.stdout:
             return {
@@ -156,7 +157,8 @@ try {
     try:
         result = subprocess.run(
             ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
-            capture_output=True, text=True, timeout=5
+            capture_output=True, text=True, timeout=5,
+            creationflags=subprocess.CREATE_NO_WINDOW
         )
         return "OK" in result.stdout
     except Exception:
