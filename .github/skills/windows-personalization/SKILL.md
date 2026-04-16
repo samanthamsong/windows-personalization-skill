@@ -166,6 +166,7 @@ while True:
 - `cherry-blossom.py` — falling petals with wind physics
 - `shooting-stars.py` — streaking particles across a night sky
 - `enchanted-forest.py` — layered forest floor with firefly overlay
+- `water-droplets.py` — raindrops on a pond with expanding ripple rings and lily pads
 
 ### 🔔 Alert-Based Lighting Rules (Available)
 Set up rules that trigger lighting effects when Windows notifications arrive.
@@ -301,17 +302,25 @@ Wallpapers are cached per theme name in `~/Pictures/themes/` so re-applying a th
    - **Specific image**: Use `wallpaper_url` with a direct link. Always provide a fallback (`art_search` or `wallpaper_search`).
 4. **Mode**: Choose dark or light based on the theme mood (dark for moody/gaming/night themes, light for bright/cute/nature themes)
 5. **Taskbar**: Usually `true` for bold themes (Shrek green, ocean blue), `false` for subtle/light themes
-6. **DL style**: Match the theme mood — `wave` (flowing/natural), `breathe` (calm/ambient), `shimmer` (sparkly/magical), `static` (clean/minimal), `pulse` (energetic/gaming)
+6. **DL style**: Match the theme mood — `wave` (flowing/natural), `breathe` (calm/ambient), `shimmer` (sparkly/magical), `static` (clean/minimal), `pulse` (energetic/gaming), `droplet` (water/rain/pond)
+
+**IMPORTANT — Theme styles vs standalone effects:**
+- **Theme styles** (`dl_style` in theme spec) are generic palette-based patterns. They take any set of colors and apply a pattern (wave, breathe, shimmer, etc.). Use these when applying a full theme.
+- **Standalone effects** (`modules/dynamic-lighting/effects/`) are custom per-lamp animations with unique visuals (koi fish swimming, cherry blossoms falling, shooting stars). They have their own hardcoded colors and physics.
+- When a user asks to **"create a new effect"**, **"make an animation"**, or describes a **specific visual scene** (e.g., "water droplets on a pond", "fireflies in a forest") → **generate a standalone effect script** in `modules/dynamic-lighting/effects/`.
+- When a user asks to **"change my theme"** or **"make everything X"** → use the theme engine with a `dl_style`.
 
 **Capability-aware**: The tool auto-detects what's available. If registry writes aren't possible, desktop styling is skipped. If no DL device is found, lighting is skipped. The tool always reports what it applied and what it skipped.
 
 ## Routing
 
 When the user's request involves:
-- **Lighting, RGB, keyboard colors, LED effects** → Use Dynamic Lighting CLI commands or generate effect scripts
+- **"Create/generate/make a new effect/animation"** → Generate a standalone effect script in `modules/dynamic-lighting/effects/` (see template above)
+- **"Run [effect name]", "Play koi fish"** → `python modules/dynamic-lighting/lighting.py run-effect <name>`
+- **Lighting, RGB, keyboard colors, solid color** → Use Dynamic Lighting CLI commands
 - **Alerts, notifications, "when I get", "flash when", "notify me"** → Use alert-watcher.py CLI commands
 - **Spotify, music, "sync to music", "what's playing", album colors** → Use Spotify module commands
-- **Theme, accent color, dark mode, light mode, wallpaper, "make everything X"** → Use Themes module (`apply-theme.py`)
-- **Just wallpaper** → Use Themes module with only `wallpaper_url`/`wallpaper_search` fields
+- **Theme, accent color, dark mode, light mode, wallpaper, "make everything X"** → Use Themes module (`apply-theme.py`) with a `dl_style` for lighting
+- **Just wallpaper** → Use Themes module with only `wallpaper_url`/`wallpaper_search`/`art_search` fields
 - **Just accent color or dark/light mode** → Use Themes module with only `accent_color`/`mode` fields
-- **"Make everything [theme]"** or **broad personalization** → Use Themes module with full spec (wallpaper + desktop + DL)
+- **"Make everything [theme]"** or **broad personalization** → Use Themes module with full spec (wallpaper + desktop + DL style)
