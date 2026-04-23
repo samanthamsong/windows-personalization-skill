@@ -24,6 +24,18 @@ stderr.log
 # Dependencies
 node_modules/
 
+# Certificates & secrets
+*.pfx
 devcert.pfx
 .spotify-token
 .spotify-config
+
+# Runtime files
+*.pid
+.theme-lighting.pid
+
+# Staged binaries
+PackageStaging/DynamicLightingDriver.exe
+
+# Duplicate modules under .github (canonical copy is /modules/)
+.github/skills/windows-personalization/modules/
