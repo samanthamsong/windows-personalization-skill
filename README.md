@@ -102,6 +102,7 @@ Per-lamp Python scripts that create pixel-level animations on your keyboard.
 | [Rainbow](modules/dynamic-lighting/effects/rainbow.py) | Per-lamp rainbow gradient |
 | [Star Wars Lightsaber](modules/dynamic-lighting/effects/star-wars-lightsaber.py) | Lightsaber ignition effect |
 | [Hello Kitty](modules/dynamic-lighting/effects/hello-kitty.py) | Hello Kitty themed colors |
+| [Cinematic](modules/dynamic-lighting/effects/cinematic.py) | Screen-reactive ambient lighting — keyboard mirrors your display |
 
 ## 🤖 Installing as a Copilot Skill
 

@@ -70,7 +70,7 @@ if ($missing.Count -gt 0) {
 
 # Step 2: Install Python dependencies
 Write-Host "`nStep 2: Installing Python dependencies..." -ForegroundColor Yellow
-pip install --quiet Pillow requests 2>$null
+pip install --quiet Pillow requests mss 2>$null
 if ($LASTEXITCODE -eq 0) {
     Write-Host "  Core dependencies installed." -ForegroundColor Green
 } else {

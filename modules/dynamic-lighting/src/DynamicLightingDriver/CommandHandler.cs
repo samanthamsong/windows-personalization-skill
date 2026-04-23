@@ -64,6 +64,7 @@ public sealed class CommandHandler
                 "DIAGNOSE" => await HandleDiagnose(),
                 "CREATE_EFFECT" => await HandleCreateEffect(args),
                 "STOP_EFFECT" => HandleStopEffect(),
+                "HOLD_FOREGROUND" => HandleHoldForeground(args),
                 "QUIT" => "QUIT",
                 _ => $"ERROR Unknown command: {command}",
             };
@@ -658,6 +659,16 @@ public sealed class CommandHandler
             return "ERROR Expected 'light' or 'dark'";
         _window.SetTheme(theme == "light");
         return $"OK {theme}";
+    }
+
+    private string HandleHoldForeground(string args)
+    {
+        var value = args.Trim().ToLowerInvariant();
+        bool hold = value is "on" or "true" or "1";
+        _window.SetHoldForeground(hold);
+        if (hold)
+            _window.BringToForeground();
+        return $"OK hold_foreground={hold}";
     }
 
     // -----------------------------------------------------------------------

@@ -888,6 +888,24 @@ public sealed class LightingWindow : IDisposable
             }
         };
 
+        // Re-claim foreground when the window loses activation (if HoldForeground is on)
+        _form.Deactivate += (s, e) =>
+        {
+            if (_form is ForegroundForm fg && fg.HoldForeground && !_disposed)
+            {
+                // Short delay so we don't fight the OS immediately
+                var reclaimTimer = new System.Windows.Forms.Timer { Interval = 250 };
+                reclaimTimer.Tick += (_, _) =>
+                {
+                    reclaimTimer.Stop();
+                    reclaimTimer.Dispose();
+                    if (fg.HoldForeground && !fg.IsDisposed && !_disposed)
+                        BringToForeground();
+                };
+                reclaimTimer.Start();
+            }
+        };
+
         _ready.Set();
         Application.Run(_form);
     }

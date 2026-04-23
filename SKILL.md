@@ -52,6 +52,9 @@ This builds the driver, installs it, and registers for package identity. Only ne
 | "Ocean waves on my keyboard" | Generate an ocean wave effect script |
 | "Rainbow wave" | `python modules/dynamic-lighting/lighting.py run-effect rainbow` |
 | "Stop the lights" | `python modules/dynamic-lighting/lighting.py stop` |
+| "Cinematic mode" | `python modules/dynamic-lighting/lighting.py run-effect cinematic` |
+| "Match my lights to what's on screen" | `python modules/dynamic-lighting/lighting.py run-effect cinematic` |
+| "Ambilight mode" | `python modules/dynamic-lighting/lighting.py run-effect cinematic` |
 | "Switch to light mode" | `python modules/dynamic-lighting/lighting.py set-theme light` |
 | "Use dark mode" | `python modules/dynamic-lighting/lighting.py set-theme dark` |
 | "What devices do I have?" | `python modules/dynamic-lighting/lighting.py list-devices` |
@@ -329,6 +332,7 @@ When the user's request involves:
 - **"Create/generate/make a new effect/animation"** → Generate a standalone effect script in `modules/dynamic-lighting/effects/` (see template above)
 - **"Run [effect name]", "Play koi fish"** → `python modules/dynamic-lighting/lighting.py run-effect <name>`
 - **Lighting, RGB, keyboard colors, solid color** → Use Dynamic Lighting CLI commands
+- **"Cinematic mode", "match lights to screen", "ambilight", "bias light", "movie mode"** → `python modules/dynamic-lighting/lighting.py run-effect cinematic`
 - **Alerts, notifications, "when I get", "flash when", "notify me"** → Use alert-watcher.py CLI commands
 - **Spotify, music, "sync to music", "what's playing", album colors** → Use Spotify module commands
 - **Theme, accent color, dark mode, light mode, wallpaper, "make everything X"** → Use Themes module (`apply-theme.py`) with a `dl_style` for lighting
