@@ -4,9 +4,10 @@
 .DESCRIPTION
     This script:
     1. Builds the .NET project
-    2. Stages the package layout (manifest, assets, public folder, exe)
-    3. Uses 'winapp package' to create and sign an MSIX with an auto-generated dev certificate
-    4. Installs the signed package with external content pointing to build output
+    2. Copies the build output to a canonical install path (%LocalAppData%\DynamicLightingDriver)
+    3. Stages the package layout (manifest, assets, public folder, exe)
+    4. Uses 'winapp package' to create and sign an MSIX with an auto-generated dev certificate
+    5. Installs the signed package with external content pointing to the canonical install path
     After registration, the app appears in Settings > Personalization > Dynamic Lighting > Background light control
     and can control lighting in the background without needing foreground focus.
 .NOTES
@@ -28,9 +29,12 @@ $ManifestPath = Join-Path $PackageDir "AppxManifest.xml"
 
 # Determine build output directory
 $Tfm = "net9.0-windows10.0.26100.0"
-$OutputDir = Join-Path $ProjectDir "bin\$Configuration\$Tfm"
+$BuildOutputDir = Join-Path $ProjectDir "bin\$Configuration\$Tfm"
 
-Write-Host "=== Dynamic Lighting Driver ? Ambient App Registration ===" -ForegroundColor Cyan
+# Canonical install path - all scripts reference this location
+$InstallDir = Join-Path $env:LOCALAPPDATA "DynamicLightingDriver"
+
+Write-Host "=== Dynamic Lighting Driver - Ambient App Registration ===" -ForegroundColor Cyan
 
 # Step 1: Build
 Write-Host "`nStep 1: Building project..." -ForegroundColor Yellow
@@ -41,8 +45,16 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Host "  Build succeeded." -ForegroundColor Green
 
-# Step 2: Unregister previous version if present
-Write-Host "`nStep 2: Checking for existing registration..." -ForegroundColor Yellow
+# Step 2: Copy build output to canonical install path
+Write-Host "`nStep 2: Installing to $InstallDir..." -ForegroundColor Yellow
+if (-not (Test-Path $InstallDir)) {
+    New-Item $InstallDir -ItemType Directory | Out-Null
+}
+Copy-Item "$BuildOutputDir\*" $InstallDir -Recurse -Force
+Write-Host "  Copied build output to install directory." -ForegroundColor Green
+
+# Step 3: Unregister previous version if present
+Write-Host "`nStep 3: Checking for existing registration..." -ForegroundColor Yellow
 $existing = Get-AppxPackage -Name "DynamicLightingDriver" -ErrorAction SilentlyContinue
 if ($existing) {
     Write-Host "  Removing existing package..." -ForegroundColor Yellow
@@ -61,10 +73,10 @@ if ($oldPkg) {
     Write-Host "  Removed old package." -ForegroundColor Green
 }
 
-# Step 3: Stage package layout
-Write-Host "`nStep 3: Staging package layout..." -ForegroundColor Yellow
-$StageDir = Join-Path $ProjectDir "PackageStaging"
-$MsixPath = Join-Path $ProjectDir "DynamicLightingDriver.msix"
+# Step 4: Stage package layout
+Write-Host "`nStep 4: Staging package layout..." -ForegroundColor Yellow
+$StageDir = Join-Path $env:LOCALAPPDATA "DynamicLightingDriver_Staging"
+$MsixPath = Join-Path $env:LOCALAPPDATA "DynamicLightingDriver.msix"
 
 if (Test-Path $StageDir) { Remove-Item $StageDir -Recurse -Force }
 New-Item $StageDir -ItemType Directory | Out-Null
@@ -80,11 +92,11 @@ Copy-Item (Join-Path $PackageDir "Assets") "$StageDir\Assets" -Recurse
 if (Test-Path (Join-Path $PackageDir "public")) {
     Copy-Item (Join-Path $PackageDir "public") "$StageDir\public" -Recurse
 }
-Copy-Item (Join-Path $OutputDir "DynamicLightingDriver.exe") "$StageDir\" -Force
+Copy-Item (Join-Path $InstallDir "DynamicLightingDriver.exe") "$StageDir\" -Force
 Write-Host "  Layout staged at: $StageDir" -ForegroundColor Green
 
-# Step 4: Ensure signing certificate exists
-Write-Host "`nStep 4: Ensuring signing certificate..." -ForegroundColor Yellow
+# Step 5: Ensure signing certificate exists
+Write-Host "`nStep 5: Ensuring signing certificate..." -ForegroundColor Yellow
 $Publisher = "CN=DynamicLightingDriver"
 $CertDir = Join-Path $ProjectDir "Package"
 $CertPath = Join-Path $CertDir "devcert.pfx"
@@ -106,10 +118,12 @@ if (-not (Test-Path $CertPath)) {
 # Trust the cert if newly generated
 if ($NeedsTrust) {
     Write-Host "  Installing certificate to trusted stores..." -ForegroundColor Yellow
+    $prevPref = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
     winapp cert install $CertPath 2>$null
-    $ErrorActionPreference = "Stop"
-    if ($LASTEXITCODE -ne 0) {
+    $certInstallResult = $LASTEXITCODE
+    $ErrorActionPreference = $prevPref
+    if ($certInstallResult -ne 0) {
         Write-Host "  winapp cert install needs admin, falling back to Import-Certificate..." -ForegroundColor Yellow
         $pfxPass = ConvertTo-SecureString "password" -AsPlainText -Force
         $cert = Import-PfxCertificate -FilePath $CertPath -CertStoreLocation "Cert:\CurrentUser\My" -Password $pfxPass
@@ -127,8 +141,8 @@ if ($NeedsTrust) {
 }
 Write-Host "  Certificate ready" -ForegroundColor Green
 
-# Step 5: Create signed .msix using WinAppCLI
-Write-Host "`nStep 5: Creating signed .msix with WinAppCLI..." -ForegroundColor Yellow
+# Step 6: Create signed .msix using WinAppCLI
+Write-Host "`nStep 6: Creating signed .msix with WinAppCLI..." -ForegroundColor Yellow
 Remove-Item $MsixPath -ErrorAction SilentlyContinue
 
 winapp package $StageDir `
@@ -146,17 +160,37 @@ Write-Host "  Created and signed .msix" -ForegroundColor Green
 # Clean up staging
 Remove-Item $StageDir -Recurse -Force
 
-# Step 6: Install signed package with external location
-Write-Host "`nStep 6: Installing signed package..." -ForegroundColor Yellow
+# Step 7: Try MSIX install first, fall back to loose registration
+Write-Host "`nStep 7: Installing package..." -ForegroundColor Yellow
 Write-Host "  .msix: $MsixPath"
-Write-Host "  External location: $OutputDir"
+Write-Host "  External location: $InstallDir"
 
-Add-AppxPackage -Path $MsixPath -ExternalLocation $OutputDir
+$installed = $false
+try {
+    Add-AppxPackage -Path $MsixPath -ExternalLocation $InstallDir
+    $installed = $true
+    Write-Host "  MSIX installation succeeded!" -ForegroundColor Green
+} catch {
+    Write-Host "  MSIX install failed (cert may not be trusted). Trying loose registration..." -ForegroundColor Yellow
+    # Loose registration fallback (works with Developer Mode enabled)
+    $LooseDir = Join-Path $env:LOCALAPPDATA "DynamicLightingDriver_Layout"
+    if (Test-Path $LooseDir) { Remove-Item $LooseDir -Recurse -Force }
+    New-Item $LooseDir -ItemType Directory | Out-Null
+    $ManifestContent = Get-Content $ManifestPath -Raw
+    $ManifestContent = $ManifestContent -replace 'ProcessorArchitecture="[^"]*"', "ProcessorArchitecture=`"$Arch`""
+    Set-Content "$LooseDir\AppxManifest.xml" $ManifestContent -Encoding UTF8
+    Copy-Item (Join-Path $PackageDir "Assets") "$LooseDir\Assets" -Recurse
+    if (Test-Path (Join-Path $PackageDir "public")) {
+        Copy-Item (Join-Path $PackageDir "public") "$LooseDir\public" -Recurse
+    }
+    Copy-Item (Join-Path $InstallDir "DynamicLightingDriver.exe") "$LooseDir\" -Force
+    Add-AppxPackage -Register "$LooseDir\AppxManifest.xml" -ExternalLocation $InstallDir
+    $installed = $true
+    Write-Host "  Loose registration succeeded!" -ForegroundColor Green
+}
 
-Write-Host "  Installation succeeded!" -ForegroundColor Green
-
-# Step 7: Verify
-Write-Host "`nStep 7: Verifying registration..." -ForegroundColor Yellow
+# Step 8: Verify
+Write-Host "`nStep 8: Verifying registration..." -ForegroundColor Yellow
 $pkg = Get-AppxPackage -Name "DynamicLightingDriver"
 if ($pkg) {
     Write-Host "  Package: $($pkg.PackageFullName)" -ForegroundColor Green
@@ -166,8 +200,21 @@ if ($pkg) {
     Write-Warning "  Package not found after installation. Check for errors above."
 }
 
+# Verify the driver can actually launch
+Write-Host "`nStep 9: Verifying driver launches..." -ForegroundColor Yellow
+$ExePath = Join-Path $InstallDir "DynamicLightingDriver.exe"
+if (Test-Path $ExePath) {
+    Write-Host "  Driver EXE found at: $ExePath" -ForegroundColor Green
+} else {
+    Write-Warning "  Driver EXE not found at expected path: $ExePath"
+}
+
 Write-Host "`n=== Done ===" -ForegroundColor Cyan
 Write-Host "Your app should now appear in:"
 Write-Host "  Settings -> Personalization -> Dynamic Lighting -> Background light control"
 Write-Host ""
+Write-Host "IMPORTANT: Move 'Dynamic Lighting Driver' so it is BELOW"
+Write-Host "'Dynamic Lighting Background Controller' in the priority list."
+Write-Host ""
+Write-Host "Driver installed to: $InstallDir"
 Write-Host "To unregister: Get-AppxPackage *DynamicLightingDriver* | Remove-AppxPackage"

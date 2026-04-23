@@ -14,9 +14,16 @@ Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, 
 
 **Prerequisites:**
 - Windows 11 22H2+ with a Dynamic Lighting compatible device
-- .NET 9 SDK (build once: `dotnet build modules/dynamic-lighting/DynamicLightingDriver.sln`)
-- Python 3.10+
-- Run `modules/dynamic-lighting/src/DynamicLightingDriver/Package/Register-AmbientLighting.ps1` once for device access
+- .NET 9 SDK, Python 3.10+, WinAppCLI
+- Driver must be installed to `%LocalAppData%\DynamicLightingDriver\`
+
+**First-time setup:** If the driver is not installed, clone the repo and run setup:
+```
+git clone https://github.com/samanthamsong/windows-personalization-skill.git
+cd windows-personalization-skill
+.\setup.ps1
+```
+This builds the driver, installs it, and registers for package identity. Only needed once.
 
 **CLI Commands:**
 
@@ -69,7 +76,7 @@ When a user requests a complex or creative lighting effect (e.g. "koi fish swimm
 import os, subprocess, json, time, threading, sys, math
 
 # Launch lighting driver
-EXE = os.path.join(os.path.expanduser('~'), 'DLDriverBin', 'DynamicLightingDriver.exe')
+EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
 proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
 threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
 

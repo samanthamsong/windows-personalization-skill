@@ -37,7 +37,7 @@ if sys.stderr.encoding != 'utf-8':
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'spotify'))
 from device_manager import DeviceManager
 
-EXE = os.path.join(os.path.expanduser('~'), 'DLDriverBin', 'DynamicLightingDriver.exe')
+EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
 
 PID_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.theme-lighting.pid')
 PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)),

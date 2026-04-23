@@ -2,7 +2,7 @@ import os, subprocess, json, time, threading, sys, math, random
 from PIL import Image, ImageDraw, ImageFont
 
 # Launch lighting driver
-EXE = os.path.join(os.path.expanduser('~'), 'DLDriverBin', 'DynamicLightingDriver.exe')
+EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
 OUT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)

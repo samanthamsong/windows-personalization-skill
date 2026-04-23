@@ -24,7 +24,8 @@ import argparse
 import signal
 
 EXE = os.path.join(
-    os.path.expanduser('~'), 'DLDriverBin', 'DynamicLightingDriver.exe'
+    os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')),
+    'DynamicLightingDriver', 'DynamicLightingDriver.exe'
 )
 
 EFFECTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'effects')

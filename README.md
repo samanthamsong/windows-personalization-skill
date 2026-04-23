@@ -35,34 +35,28 @@ git clone https://github.com/samanthamsong/windows-personalization-skill.git
 cd windows-personalization-skill
 ```
 
-### 2. Build the driver
+### 2. Run setup
 
 ```powershell
-cd modules/dynamic-lighting
-dotnet build DynamicLightingDriver.sln
+.\setup.ps1
 ```
 
-### 3. Register for package identity
+This will:
+1. Check prerequisites (.NET 9, Python 3, WinAppCLI)
+2. Install Python dependencies
+3. Build the .NET driver
+4. Install the driver to `%LocalAppData%\DynamicLightingDriver\`
+5. Register for AppX package identity (needed for LampArray API access)
+6. Verify everything works
 
-The driver needs package identity to access the LampArray API. The registration script uses WinAppCLI to create a signed MSIX package and install it.
+> ⚠️ **First run:** You may need to run as admin once so the dev certificate can be added to the machine trust store:
+> ```powershell
+> Start-Process powershell -Verb RunAs -ArgumentList "-File $PWD\setup.ps1"
+> ```
 
-```powershell
-cd src/DynamicLightingDriver/Package
-.\Register-AmbientLighting.ps1
-```
+> ⚠️ **Important:** After setup, go to **Settings → Personalization → Dynamic Lighting → Background light control** and move **Dynamic Lighting Driver** so it is **below** "Dynamic Lighting Background Controller" in the priority list.
 
-This script will:
-1. Build the .NET project
-2. Auto-detect your CPU architecture (x64/arm64) and patch the manifest
-3. Generate a dev certificate with `winapp cert generate` (first run only)
-4. Create and sign the MSIX with `winapp package`
-5. Install the package with `Add-AppxPackage`
-
-> ⚠️ **First run:** You may need to run as admin once so the dev certificate can be added to the machine trust store. Subsequent runs work without admin.
-
-> ⚠️ **Important:** After registration, go to **Settings → Personalization → Dynamic Lighting → Background light control** and move **Dynamic Lighting Driver** to the **top of the priority list**. This ensures the driver takes precedence over other lighting apps.
-
-### 4. Try it!
+### 3. Try it!
 
 ```powershell
 # Set your keyboard to a color
@@ -153,7 +147,7 @@ Flash your keyboard whenever you get a Windows notification — Teams messages, 
 2. When a toast arrives, it writes a color + duration to `rules/.pause`
 3. The running effect reads the pause file, flashes the color, then resumes the animation
 
-All effects support notification flash alerts — both per-frame effects (koi-fish, flower-garden, etc.) and CREATE_EFFECT effects (cherry-blossom, rainbow, etc.) will flash and automatically resume.
+All effects support notification flash alerts. Every per-lamp effect (koi-fish, flower-garden, shooting-stars, etc.) will flash and automatically resume.
 
 ### Quick start
 
@@ -346,17 +340,23 @@ pip install spotipy Pillow requests pycaw comtypes numpy
 ```powershell
 git clone https://github.com/samanthamsong/windows-personalization-skill.git
 cd windows-personalization-skill
-dotnet build modules/dynamic-lighting/DynamicLightingDriver.sln
+
+# One-command setup (builds, installs, registers)
+.\setup.ps1
 ```
 
-### Register for package identity
+Or manually:
 
 ```powershell
+# Build the driver
+dotnet build modules/dynamic-lighting/DynamicLightingDriver.sln
+
+# Install to canonical path and register
 cd modules/dynamic-lighting/src/DynamicLightingDriver/Package
 .\Register-AmbientLighting.ps1
 ```
 
-On the **first run**, run from an elevated (admin) PowerShell so the dev certificate can be trusted system-wide. Subsequent runs don't need admin — the certificate is cached as `devcert.pfx`.
+The driver is installed to `%LocalAppData%\DynamicLightingDriver\`. All effect scripts and CLI tools reference this path.
 
 ### Verify setup
 

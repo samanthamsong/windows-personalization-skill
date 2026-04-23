@@ -37,7 +37,7 @@ from mood_mapper import classify_mood, mood_to_effect_params, apply_brightness, 
 from device_manager import DeviceManager
 
 # Driver exe path
-DRIVER_EXE = os.path.join(os.path.expanduser('~'), 'DLDriverBin', 'DynamicLightingDriver.exe')
+DRIVER_EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
 
 # Overlay palette file — effects read this to shift their color palette
 PALETTE_FILE = os.path.join(MODULE_DIR, '..', 'dynamic-lighting', 'rules', '.spotify-palette')

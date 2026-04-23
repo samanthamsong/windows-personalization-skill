@@ -33,7 +33,7 @@ from mood_mapper import apply_brightness, blend_colors
 from device_manager import DeviceManager
 
 # Driver exe path
-DRIVER_EXE = os.path.join(os.path.expanduser('~'), 'DLDriverBin', 'DynamicLightingDriver.exe')
+DRIVER_EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
 
 # Named color map
 COLOR_MAP = {
