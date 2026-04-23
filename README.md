@@ -30,10 +30,14 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 
 ### 1. Clone the repo
 
+Clone directly into the Copilot skills directory so it's automatically discovered:
+
 ```powershell
-git clone https://github.com/samanthamsong/windows-personalization-skill.git
-cd windows-personalization-skill
+git clone https://github.com/samanthamsong/windows-personalization-skill.git "$HOME\.copilot\skills\windows-personalization"
+cd "$HOME\.copilot\skills\windows-personalization"
 ```
+
+> **Already cloned somewhere else?** Run `.\setup.ps1` — it creates a junction from `~/.copilot/skills/windows-personalization/` to the repo automatically.
 
 ### 2. Run setup
 
@@ -98,6 +102,63 @@ Per-lamp Python scripts that create pixel-level animations on your keyboard.
 | [Rainbow](modules/dynamic-lighting/effects/rainbow.py) | Per-lamp rainbow gradient |
 | [Star Wars Lightsaber](modules/dynamic-lighting/effects/star-wars-lightsaber.py) | Lightsaber ignition effect |
 | [Hello Kitty](modules/dynamic-lighting/effects/hello-kitty.py) | Hello Kitty themed colors |
+
+## 🤖 Installing as a Copilot Skill
+
+This repo is structured as a [Copilot personal skill](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills). The `SKILL.md` at the repo root tells AI agents how to use the lighting, themes, and Spotify modules.
+
+### Automatic (recommended)
+
+Running `.\setup.ps1` installs everything — including registering the skill with Copilot:
+
+```powershell
+git clone https://github.com/samanthamsong/windows-personalization-skill.git "$HOME\.copilot\skills\windows-personalization"
+cd "$HOME\.copilot\skills\windows-personalization"
+.\setup.ps1
+```
+
+### Manual
+
+If you've already cloned the repo elsewhere:
+
+```powershell
+# Create a junction so Copilot can find the skill
+cmd /c mklink /J "%USERPROFILE%\.copilot\skills\windows-personalization" "C:\path\to\windows-personalization-skill"
+```
+
+### Verify
+
+In the Copilot CLI, run:
+
+```
+/skills info windows-personalization
+```
+
+> **Note:** If you move or rename the repo directory, re-run `.\setup.ps1` to update the link.
+
+## 📁 Repo Structure
+
+```
+windows-personalization-skill/
+├── SKILL.md                    # Copilot skill definition (agent instructions)
+├── README.md                   # This file
+├── setup.ps1                   # One-command setup (build + install + register skill)
+├── modules/
+│   ├── dynamic-lighting/       # RGB device control + per-lamp effects
+│   │   ├── lighting.py         # CLI entry point
+│   │   ├── effects/            # Per-lamp animation scripts
+│   │   └── src/                # .NET driver source
+│   ├── spotify/                # Spotify album color sync
+│   ├── themes/                 # Full desktop theming
+│   ├── sounds/                 # (planned) Sound customization
+│   └── wallpaper/              # (planned) Wallpaper management
+├── .github/
+│   ├── workflows/              # CI/CD
+│   └── ISSUE_TEMPLATE/         # Bug reports & feature requests
+└── .gitignore
+```
+
+> **Important:** `SKILL.md` must stay at the repo root alongside `modules/`. This is what makes the repo a valid Copilot skill directory — the skill system looks for `SKILL.md` and makes sibling files available to the agent.
 
 ## 🛠️ Create Your Own Effect
 
@@ -338,12 +399,15 @@ pip install spotipy Pillow requests pycaw comtypes numpy
 ### Clone and build
 
 ```powershell
-git clone https://github.com/samanthamsong/windows-personalization-skill.git
-cd windows-personalization-skill
+# Clone directly into the skills directory (recommended)
+git clone https://github.com/samanthamsong/windows-personalization-skill.git "$HOME\.copilot\skills\windows-personalization"
+cd "$HOME\.copilot\skills\windows-personalization"
 
-# One-command setup (builds, installs, registers)
+# One-command setup (builds, installs, registers skill)
 .\setup.ps1
 ```
+
+If you clone elsewhere, `setup.ps1` will create a junction to `~/.copilot/skills/windows-personalization/` automatically.
 
 Or manually:
 

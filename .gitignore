@@ -37,5 +37,5 @@ devcert.pfx
 # Staged binaries
 PackageStaging/DynamicLightingDriver.exe
 
-# Duplicate modules under .github (canonical copy is /modules/)
-.github/skills/windows-personalization/modules/
+# Legacy skill directory (skill now lives at repo root)
+.github/skills/

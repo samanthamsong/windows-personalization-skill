@@ -17,10 +17,14 @@ Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, 
 - .NET 9 SDK, Python 3.10+, WinAppCLI
 - Driver must be installed to `%LocalAppData%\DynamicLightingDriver\`
 
-**First-time setup:** If the driver is not installed, clone the repo and run setup:
+**First-time setup:** If the driver is not installed, run setup from the skill directory:
 ```
-git clone https://github.com/samanthamsong/windows-personalization-skill.git
-cd windows-personalization-skill
+.\setup.ps1
+```
+If the skill is not yet installed, clone the repo and run setup:
+```
+git clone https://github.com/samanthamsong/windows-personalization-skill.git ~/.copilot/skills/windows-personalization
+cd ~/.copilot/skills/windows-personalization
 .\setup.ps1
 ```
 This builds the driver, installs it, and registers for package identity. Only needed once.
