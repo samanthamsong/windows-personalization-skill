@@ -33,9 +33,7 @@ from mood_mapper import apply_brightness, blend_colors
 from device_manager import DeviceManager
 
 # Driver exe path
-DRIVER_EXE = os.path.join(MODULE_DIR, '..', 'dynamic-lighting', 'src',
-                          'DynamicLightingDriver', 'bin', 'Debug',
-                          'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe')
+DRIVER_EXE = os.path.join(os.path.expanduser('~'), 'DLDriverBin', 'DynamicLightingDriver.exe')
 
 # Named color map
 COLOR_MAP = {

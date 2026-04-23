@@ -24,9 +24,7 @@ import argparse
 import signal
 
 EXE = os.path.join(
-    os.path.dirname(os.path.abspath(__file__)),
-    'src', 'DynamicLightingDriver', 'bin', 'Debug',
-    'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe'
+    os.path.expanduser('~'), 'DLDriverBin', 'DynamicLightingDriver.exe'
 )
 
 EFFECTS_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'effects')

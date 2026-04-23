@@ -87,11 +87,7 @@ class LightingClient:
     """Communicates with the Dynamic Lighting Driver via line protocol."""
 
     def __init__(self):
-        exe = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            'src', 'DynamicLightingDriver', 'bin', 'Debug',
-            'net9.0-windows10.0.26100.0', 'DynamicLightingDriver.exe'
-        )
+        exe = os.path.join(os.path.expanduser('~'), 'DLDriverBin', 'DynamicLightingDriver.exe')
         self.proc = subprocess.Popen(
             [exe], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.PIPE, bufsize=0

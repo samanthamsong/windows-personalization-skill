@@ -30,7 +30,7 @@ $ManifestPath = Join-Path $PackageDir "AppxManifest.xml"
 $Tfm = "net9.0-windows10.0.26100.0"
 $OutputDir = Join-Path $ProjectDir "bin\$Configuration\$Tfm"
 
-Write-Host "=== Dynamic Lighting Driver — Ambient App Registration ===" -ForegroundColor Cyan
+Write-Host "=== Dynamic Lighting Driver ? Ambient App Registration ===" -ForegroundColor Cyan
 
 # Step 1: Build
 Write-Host "`nStep 1: Building project..." -ForegroundColor Yellow
@@ -106,7 +106,9 @@ if (-not (Test-Path $CertPath)) {
 # Trust the cert if newly generated
 if ($NeedsTrust) {
     Write-Host "  Installing certificate to trusted stores..." -ForegroundColor Yellow
+    $ErrorActionPreference = "Continue"
     winapp cert install $CertPath 2>$null
+    $ErrorActionPreference = "Stop"
     if ($LASTEXITCODE -ne 0) {
         Write-Host "  winapp cert install needs admin, falling back to Import-Certificate..." -ForegroundColor Yellow
         $pfxPass = ConvertTo-SecureString "password" -AsPlainText -Force
@@ -165,7 +167,7 @@ if ($pkg) {
 }
 
 Write-Host "`n=== Done ===" -ForegroundColor Cyan
-Write-Host 'Your app should now appear in:'
-Write-Host '  Settings -> Personalization -> Dynamic Lighting -> Background light control'
-Write-Host ''
-Write-Host 'To unregister: Get-AppxPackage *DynamicLightingDriver* | Remove-AppxPackage'
+Write-Host "Your app should now appear in:"
+Write-Host "  Settings -> Personalization -> Dynamic Lighting -> Background light control"
+Write-Host ""
+Write-Host "To unregister: Get-AppxPackage *DynamicLightingDriver* | Remove-AppxPackage"
