@@ -6,9 +6,10 @@ using Windows.Devices.Lights;
 namespace DynamicLightingDriver;
 
 /// <summary>
-/// A small companion window that gives the driver process foreground status,
-/// which is required for LampArray.IsAvailable to become true on Windows 11.
-/// Runs on a dedicated STA thread.
+/// A small companion window for the driver process. When the app has ambient
+/// priority (highest in Settings > Dynamic Lighting), LampArray.IsAvailable is
+/// true without foreground. The foreground hack is only a fallback for when
+/// ambient mode is not configured. Runs on a dedicated STA thread.
 /// </summary>
 public sealed class LightingWindow : IDisposable
 {
@@ -77,8 +78,10 @@ public sealed class LightingWindow : IDisposable
     private volatile bool _disposed;
     private bool _isLightMode;
     private System.Windows.Forms.Timer? _retryTimer;
+    private System.Windows.Forms.Timer? _deactivateReclaimTimer;
     private int _retryCount;
     private volatile bool _holdForeground;
+    private volatile bool _hidden;
 
     // Spotify panel controls
     private Panel? _spotifyPanel;
@@ -121,28 +124,46 @@ public sealed class LightingWindow : IDisposable
     /// </summary>
     public bool BringToForeground()
     {
-        if (_form is null || _form.IsDisposed) return false;
+        if (_form is null || _form.IsDisposed || _hidden) return false;
 
-        var tcs = new TaskCompletionSource<bool>();
-        _form.BeginInvoke(() =>
+        // If already on the UI thread, run inline to avoid deadlock
+        // (BeginInvoke + GetResult() deadlocks when called from the UI thread)
+        if (_form.InvokeRequired)
         {
+            var tcs = new TaskCompletionSource<bool>();
+            _form.BeginInvoke(() =>
+            {
+                tcs.SetResult(BringToForegroundCore());
+            });
+            return tcs.Task.GetAwaiter().GetResult();
+        }
+
+        return BringToForegroundCore();
+    }
+
+    private bool BringToForegroundCore()
+    {
+        if (_form is null || _form.IsDisposed || _hidden) return false;
+
+        try
+        {
+            var handle = _form.Handle;
+
+            _form.Visible = true;
+            _form.WindowState = FormWindowState.Normal;
+            _form.TopMost = true;
+
+            // Try the standard approach first
+            keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY, UIntPtr.Zero);
+            keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, UIntPtr.Zero);
+
+            var foreground = GetForegroundWindow();
+            var foregroundThread = GetWindowThreadProcessId(foreground, out _);
+            var currentThread = GetCurrentThreadId();
+
+            bool attached = false;
             try
             {
-                var handle = _form.Handle;
-
-                _form.Visible = true;
-                _form.WindowState = FormWindowState.Normal;
-                _form.TopMost = true;
-
-                // Try the standard approach first
-                keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY, UIntPtr.Zero);
-                keybd_event(VK_MENU, 0, KEYEVENTF_EXTENDEDKEY | KEYEVENTF_KEYUP, UIntPtr.Zero);
-
-                var foreground = GetForegroundWindow();
-                var foregroundThread = GetWindowThreadProcessId(foreground, out _);
-                var currentThread = GetCurrentThreadId();
-
-                bool attached = false;
                 if (foregroundThread != currentThread)
                 {
                     attached = AttachThreadInput(currentThread, foregroundThread, true);
@@ -151,35 +172,35 @@ public sealed class LightingWindow : IDisposable
                 BringWindowToTop(handle);
                 SetForegroundWindow(handle);
                 _form.Activate();
-
+            }
+            finally
+            {
                 if (attached)
                 {
                     AttachThreadInput(currentThread, foregroundThread, false);
                 }
-
-                // Brief delay for the system to process the foreground change
-                Thread.Sleep(50);
-
-                // Check if we actually got foreground. If not, simulate a click.
-                if (GetForegroundWindow() != handle)
-                {
-                    Console.Error.WriteLine("[LightingWindow] SetForegroundWindow failed, falling back to SimulateClick");
-                    SimulateClickOnWindow(handle);
-                }
-                else
-                {
-                    Console.Error.WriteLine("[LightingWindow] SetForegroundWindow succeeded");
-                }
-
-                tcs.SetResult(true);
             }
-            catch
+
+            // Brief delay for the system to process the foreground change
+            Thread.Sleep(50);
+
+            // Check if we actually got foreground. If not, simulate a click.
+            if (GetForegroundWindow() != handle)
             {
-                tcs.SetResult(false);
+                Console.Error.WriteLine("[LightingWindow] SetForegroundWindow failed, falling back to SimulateClick");
+                SimulateClickOnWindow(handle);
             }
-        });
+            else
+            {
+                Console.Error.WriteLine("[LightingWindow] SetForegroundWindow succeeded");
+            }
 
-        return tcs.Task.GetAwaiter().GetResult();
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>
@@ -211,7 +232,7 @@ public sealed class LightingWindow : IDisposable
     /// </summary>
     public void StartForegroundRetryLoop(int intervalMs = 500, int maxRetries = 30)
     {
-        if (_form is null || _form.IsDisposed) return;
+        if (_form is null || _form.IsDisposed || _hidden) return;
 
         _form.BeginInvoke(() =>
         {
@@ -222,7 +243,7 @@ public sealed class LightingWindow : IDisposable
             _retryTimer.Tick += (_, _) =>
             {
                 _retryCount++;
-                if (_retryCount > maxRetries)
+                if (_retryCount > maxRetries || _hidden)
                 {
                     StopRetryTimer();
                     return;
@@ -679,7 +700,12 @@ public sealed class LightingWindow : IDisposable
         };
         _hideToggle.Click += (s, e) =>
         {
-            _form!.Opacity = 0;
+            _hidden = true;
+            StopRetryTimer();
+            if (_form is ForegroundForm fg)
+                fg.HoldForeground = false;
+            _form!.TopMost = false;
+            _form.Opacity = 0;
             _form.ShowInTaskbar = false;
         };
 
@@ -875,8 +901,15 @@ public sealed class LightingWindow : IDisposable
         };
         _trayIcon.Click += (s, e) =>
         {
+            _hidden = false;
             _form!.Opacity = 1;
             _form.ShowInTaskbar = true;
+            _form.TopMost = true;
+            _form.Visible = true;
+            _form.WindowState = FormWindowState.Normal;
+            if (_holdForeground && _form is ForegroundForm fg)
+                fg.HoldForeground = true;
+            BringToForegroundCore();
         };
 
         _form.FormClosing += (s, e) =>
@@ -891,18 +924,27 @@ public sealed class LightingWindow : IDisposable
         // Re-claim foreground when the window loses activation (if HoldForeground is on)
         _form.Deactivate += (s, e) =>
         {
-            if (_form is ForegroundForm fg && fg.HoldForeground && !_disposed)
+            if (_form is ForegroundForm fg && fg.HoldForeground && !_disposed && !_hidden)
             {
-                // Short delay so we don't fight the OS immediately
-                var reclaimTimer = new System.Windows.Forms.Timer { Interval = 250 };
-                reclaimTimer.Tick += (_, _) =>
+                // Stop any existing reclaim timer to prevent stacking
+                if (_deactivateReclaimTimer != null)
                 {
-                    reclaimTimer.Stop();
-                    reclaimTimer.Dispose();
-                    if (fg.HoldForeground && !fg.IsDisposed && !_disposed)
+                    _deactivateReclaimTimer.Stop();
+                    _deactivateReclaimTimer.Dispose();
+                    _deactivateReclaimTimer = null;
+                }
+
+                // Short delay so we don't fight the OS immediately
+                _deactivateReclaimTimer = new System.Windows.Forms.Timer { Interval = 250 };
+                _deactivateReclaimTimer.Tick += (_, _) =>
+                {
+                    _deactivateReclaimTimer?.Stop();
+                    _deactivateReclaimTimer?.Dispose();
+                    _deactivateReclaimTimer = null;
+                    if (fg.HoldForeground && !fg.IsDisposed && !_disposed && !_hidden)
                         BringToForeground();
                 };
-                reclaimTimer.Start();
+                _deactivateReclaimTimer.Start();
             }
         };
 
@@ -918,6 +960,12 @@ public sealed class LightingWindow : IDisposable
             _form.BeginInvoke(() =>
             {
                 StopRetryTimer();
+                if (_deactivateReclaimTimer != null)
+                {
+                    _deactivateReclaimTimer.Stop();
+                    _deactivateReclaimTimer.Dispose();
+                    _deactivateReclaimTimer = null;
+                }
                 if (_trayIcon is not null)
                 {
                     _trayIcon.Visible = false;

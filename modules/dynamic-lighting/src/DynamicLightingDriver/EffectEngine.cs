@@ -69,6 +69,9 @@ public sealed class EffectEngine : IDisposable
     private volatile bool _isReapplying;
     private LightingWindow? _window;
 
+    // True when the device is available via ambient mode (no foreground hack needed)
+    private volatile bool _ambientMode;
+
     // Per-lamp color streaming: reuse the running playlist and update colors in-place
     private Color[]? _perLampColors;
     private string? _perLampDeviceId;
@@ -109,7 +112,15 @@ public sealed class EffectEngine : IDisposable
 
                 if (!sender.IsAvailable)
                 {
-                    // Try to recover by bringing window to foreground with retries
+                    if (_ambientMode)
+                    {
+                        // In ambient mode, Windows manages availability via priority.
+                        // Don't try to force foreground — just wait for it to come back.
+                        Console.Error.WriteLine("[EffectEngine] AvailabilityChanged: lost (ambient mode, waiting for system to restore).");
+                        return;
+                    }
+
+                    // Foreground fallback: try to recover by bringing window to foreground
                     Console.Error.WriteLine("[EffectEngine] AvailabilityChanged: lost. Recovering foreground...");
                     _window?.BringToForeground();
                     _window?.StartForegroundRetryLoop();
@@ -207,7 +218,9 @@ public sealed class EffectEngine : IDisposable
             _activeBindings.Add((effect, handler));
         }
 
-        _window?.SetHoldForeground(true);
+        _ambientMode = device.IsAvailable;
+        if (!_ambientMode)
+            _window?.SetHoldForeground(true);
         playlist.Start();
 
         // Track for re-apply when device becomes available again (ambient mode)
@@ -312,7 +325,9 @@ public sealed class EffectEngine : IDisposable
             _activeBindings.Add((effect, handler));
         }
 
-        _window?.SetHoldForeground(true);
+        _ambientMode = device.IsAvailable;
+        if (!_ambientMode)
+            _window?.SetHoldForeground(true);
         playlist.Start();
 
         // Track for re-apply when device becomes available again (ambient mode)
@@ -407,7 +422,9 @@ public sealed class EffectEngine : IDisposable
             _perLampDeviceId = device.DeviceId;
         }
 
-        _window?.SetHoldForeground(true);
+        _ambientMode = device.IsAvailable;
+        if (!_ambientMode)
+            _window?.SetHoldForeground(true);
         playlist.Start();
 
         // Track for re-apply when device becomes available again (ambient mode).

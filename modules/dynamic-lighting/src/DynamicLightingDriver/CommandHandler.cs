@@ -741,15 +741,19 @@ public sealed class CommandHandler
     {
         if (device.IsAvailable) return;
 
-        await WaitForAvailability(device, timeoutMs: 2000);
+        Console.Error.WriteLine("[CommandHandler] Device not available, waiting for availability...");
+        await WaitForAvailability(device, timeoutMs: 1500);
         if (device.IsAvailable) return;
 
-        for (int i = 0; i < 3; i++)
+        for (int i = 0; i < 2; i++)
         {
+            Console.Error.WriteLine($"[CommandHandler] Retry {i + 1}/2: bringing window to foreground...");
             _window.BringToForeground();
-            await WaitForAvailability(device, timeoutMs: 2000);
+            await WaitForAvailability(device, timeoutMs: 1500);
             if (device.IsAvailable) return;
         }
+
+        Console.Error.WriteLine("[CommandHandler] Device still not available after retries. Check Settings > Dynamic Lighting priority.");
     }
 
     private static async Task WaitForAvailability(LampArray device, int timeoutMs = 3000)
