@@ -6,9 +6,23 @@
       "name": "Berry Sweet Picnic Club",
       "package_file": "packages/berry-sweet-picnic-club.msix",
       "tags": [
-        "berry", "sweet", "picnic", "club", "pink", "pastel",
-        "cute", "summer", "fruit", "strawberry", "dessert", "cottagecore",
-        "warm", "playful", "whimsical", "garden", "outdoor"
+        "berry",
+        "sweet",
+        "picnic",
+        "club",
+        "pink",
+        "pastel",
+        "cute",
+        "summer",
+        "fruit",
+        "strawberry",
+        "dessert",
+        "cottagecore",
+        "warm",
+        "playful",
+        "whimsical",
+        "garden",
+        "outdoor"
       ],
       "accent_color": "#E8B9B1",
       "mode": "light",
@@ -19,13 +33,42 @@
       "description": "Pastel pink picnic aesthetic with berries and sweet treats"
     },
     {
+      "id": "blooming-dimensions",
+      "name": "Blooming Dimensions",
+      "package_file": "packages/blooming-dimensions.msix",
+      "tags": [
+        "blooming", "dimensions", "teal", "flowers", "3d", "botanical",
+        "abstract", "digital", "surreal", "nature", "growth", "petals",
+        "organic", "vibrant", "modern", "creative"
+      ],
+      "accent_color": "#0E7C86",
+      "mode": "light",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Abstract 3D botanical blooms in vibrant teal dimensions"
+    },
+    {
       "id": "blush-drift-disks",
       "name": "Blush Drift Disks",
       "package_file": "packages/blush-drift-disks.msix",
       "tags": [
-        "blush", "drift", "disks", "pink", "coral", "abstract",
-        "geometric", "circles", "modern", "soft", "warm", "gradient",
-        "minimalist", "aesthetic", "dreamy"
+        "blush",
+        "drift",
+        "disks",
+        "pink",
+        "coral",
+        "abstract",
+        "geometric",
+        "circles",
+        "modern",
+        "soft",
+        "warm",
+        "gradient",
+        "minimalist",
+        "aesthetic",
+        "dreamy"
       ],
       "accent_color": "#FF7573",
       "mode": "light",
@@ -36,13 +79,59 @@
       "description": "Soft coral and pink abstract floating disk shapes"
     },
     {
+      "id": "cosmos-dreams",
+      "name": "Cosmos Dreams",
+      "package_file": "packages/cosmos-dreams.msix",
+      "tags": [
+        "cosmos", "dreams", "purple", "space", "galaxy", "nebula",
+        "stars", "celestial", "cosmic", "night", "universe", "astral",
+        "deep", "mystical", "ethereal", "aurora"
+      ],
+      "accent_color": "#BE79C6",
+      "mode": "dark",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Deep purple cosmic nebula and galaxy dreamscapes"
+    },
+    {
+      "id": "dreamscapes",
+      "name": "Dreamscapes",
+      "package_file": "packages/dreamscapes.msix",
+      "tags": [
+        "dreamscapes", "dream", "surreal", "fantasy", "landscape",
+        "purple", "indigo", "mystical", "ethereal", "otherworldly",
+        "magical", "imagination", "scenic", "moody", "atmospheric", "art"
+      ],
+      "accent_color": "#6B72CF",
+      "mode": "dark",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Surreal fantasy landscapes in deep indigo and purple tones"
+    },
+    {
       "id": "floating-daydreams",
       "name": "Floating Daydreams",
       "package_file": "packages/floating-daydreams.msix",
       "tags": [
-        "floating", "daydreams", "purple", "magenta", "dreamy",
-        "clouds", "fantasy", "surreal", "soft", "ethereal", "pastel",
-        "whimsical", "imagination", "relaxing", "calm"
+        "floating",
+        "daydreams",
+        "purple",
+        "magenta",
+        "dreamy",
+        "clouds",
+        "fantasy",
+        "surreal",
+        "soft",
+        "ethereal",
+        "pastel",
+        "whimsical",
+        "imagination",
+        "relaxing",
+        "calm"
       ],
       "accent_color": "#D06FAD",
       "mode": "light",
@@ -57,9 +146,22 @@
       "name": "Fluid Textures",
       "package_file": "packages/fluid-textures.msix",
       "tags": [
-        "fluid", "textures", "teal", "dark", "abstract", "liquid",
-        "marble", "flowing", "modern", "moody", "deep", "ocean",
-        "water", "sleek", "sophisticated", "elegant"
+        "fluid",
+        "textures",
+        "teal",
+        "dark",
+        "abstract",
+        "liquid",
+        "marble",
+        "flowing",
+        "modern",
+        "moody",
+        "deep",
+        "ocean",
+        "water",
+        "sleek",
+        "sophisticated",
+        "elegant"
       ],
       "accent_color": "#0C767B",
       "mode": "dark",
@@ -70,13 +172,111 @@
       "description": "Dark fluid marble textures in deep teal tones"
     },
     {
+      "id": "geometric-tales",
+      "name": "Geometric Tales",
+      "package_file": "packages/geometric-tales.msix",
+      "tags": [
+        "geometric", "tales", "blue", "shapes", "triangles", "polygons",
+        "abstract", "modern", "angular", "digital", "tech", "blueprint",
+        "clean", "structured", "pattern", "mathematical"
+      ],
+      "accent_color": "#0078D4",
+      "mode": "dark",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Bold geometric shapes and angular patterns in blue tones"
+    },
+    {
+      "id": "halo-drift",
+      "name": "Halo Drift",
+      "package_file": "packages/halo-drift.msix",
+      "tags": [
+        "halo", "drift", "blue", "purple", "glow", "neon", "ring",
+        "abstract", "electric", "vibrant", "futuristic", "sci-fi",
+        "energy", "light", "aura", "radiant"
+      ],
+      "accent_color": "#4400FF",
+      "mode": "dark",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Electric glowing halos drifting through deep blue-purple space"
+    },
+    {
+      "id": "hues-of-nature",
+      "name": "Hues of Nature",
+      "package_file": "packages/hues-of-nature.msix",
+      "tags": [
+        "hues", "nature", "gold", "amber", "earth", "landscape",
+        "forest", "autumn", "fall", "warm", "organic", "trees",
+        "mountains", "scenic", "natural", "outdoors", "photography"
+      ],
+      "accent_color": "#CFAF6E",
+      "mode": "dark",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Rich golden nature photography with earthy autumn tones"
+    },
+    {
+      "id": "minimal-drift",
+      "name": "Minimal Drift",
+      "package_file": "packages/minimal-drift.msix",
+      "tags": [
+        "minimal", "drift", "gray", "grey", "neutral", "clean",
+        "simple", "monochrome", "subtle", "elegant", "calm",
+        "professional", "muted", "understated", "zen", "quiet"
+      ],
+      "accent_color": "#636363",
+      "mode": "light",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Clean minimalist grayscale with subtle drifting forms"
+    },
+    {
+      "id": "neon-dreams",
+      "name": "Neon Dreams",
+      "package_file": "packages/neon-dreams.msix",
+      "tags": [
+        "neon", "dreams", "pink", "magenta", "cyberpunk", "glow",
+        "futuristic", "retro", "synthwave", "vaporwave", "city",
+        "night", "electric", "vibrant", "bright", "gaming"
+      ],
+      "accent_color": "#E3008C",
+      "mode": "dark",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Vibrant neon pink cyberpunk dreamscapes with electric glow"
+    },
+    {
       "id": "quiet-current",
       "name": "Quiet Current",
       "package_file": "packages/quiet-current.msix",
       "tags": [
-        "quiet", "current", "teal", "dark", "calm", "serene",
-        "water", "flow", "minimal", "peaceful", "zen", "ocean",
-        "tranquil", "subtle", "deep", "moody"
+        "quiet",
+        "current",
+        "teal",
+        "dark",
+        "calm",
+        "serene",
+        "water",
+        "flow",
+        "minimal",
+        "peaceful",
+        "zen",
+        "ocean",
+        "tranquil",
+        "subtle",
+        "deep",
+        "moody"
       ],
       "accent_color": "#0C767B",
       "mode": "dark",
@@ -91,9 +291,22 @@
       "name": "Rainbow Ribbons",
       "package_file": "packages/rainbow-ribbons.msix",
       "tags": [
-        "rainbow", "ribbons", "colorful", "purple", "lavender",
-        "vibrant", "fun", "playful", "pride", "gradient", "flowing",
-        "silk", "fabric", "celebration", "bright", "joyful"
+        "rainbow",
+        "ribbons",
+        "colorful",
+        "purple",
+        "lavender",
+        "vibrant",
+        "fun",
+        "playful",
+        "pride",
+        "gradient",
+        "flowing",
+        "silk",
+        "fabric",
+        "celebration",
+        "bright",
+        "joyful"
       ],
       "accent_color": "#B19EF3",
       "mode": "light",
@@ -102,6 +315,23 @@
       "has_wallpapers": true,
       "wallpaper_count": 3,
       "description": "Colorful flowing ribbon waves in vibrant rainbow hues"
+    },
+    {
+      "id": "shifting-horizons",
+      "name": "Shifting Horizons",
+      "package_file": "packages/shifting-horizons.msix",
+      "tags": [
+        "shifting", "horizons", "teal", "cyan", "gradient", "sky",
+        "ocean", "horizon", "sunset", "sunrise", "abstract", "layers",
+        "atmospheric", "serene", "transition", "calm", "coastal"
+      ],
+      "accent_color": "#1F9DB3",
+      "mode": "dark",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Layered teal and cyan gradient horizons shifting between sky and sea"
     },
     {
       "id": "spring-lantern-blossoms",
@@ -136,9 +366,22 @@
       "name": "Starlight Courier",
       "package_file": "packages/starlight-courier.msix",
       "tags": [
-        "starlight", "courier", "purple", "lavender", "night",
-        "stars", "space", "cosmic", "galaxy", "celestial", "moon",
-        "dreamy", "magical", "fantasy", "delivery", "whimsical"
+        "starlight",
+        "courier",
+        "purple",
+        "lavender",
+        "night",
+        "stars",
+        "space",
+        "cosmic",
+        "galaxy",
+        "celestial",
+        "moon",
+        "dreamy",
+        "magical",
+        "fantasy",
+        "delivery",
+        "whimsical"
       ],
       "accent_color": "#A19DD1",
       "mode": "light",
