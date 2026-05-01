@@ -155,6 +155,15 @@ windows-personalization-skill/
 │   │   └── src/                # .NET driver source
 │   ├── spotify/                # Spotify album color sync
 │   ├── themes/                 # Full desktop theming
+│   │   ├── apply-theme.py      # Theme orchestrator (checks library first)
+│   │   ├── theme_matcher.py    # Semantic matching against library
+│   │   ├── msix_handler.py     # MSIX theme extract + apply
+│   │   ├── library/            # Packaged theme library
+│   │   │   ├── catalog.json    # Theme index with tags for matching
+│   │   │   └── packages/       # MSIX theme packages
+│   │   ├── desktop_handler.py
+│   │   ├── wallpaper_handler.py
+│   │   └── lighting_handler.py
 │   ├── sounds/                 # (planned) Sound customization
 │   └── wallpaper/              # (planned) Wallpaper management
 ├── .github/
@@ -298,6 +307,27 @@ The driver window shows a Spotify "now playing" panel (🎵 toggle) with track n
 
 Transform your entire desktop with a single prompt — wallpaper, accent color, taskbar, dark/light mode, and RGB lighting all change together.
 
+### 📦 Theme Library
+
+The skill includes a library of MSIX-packaged Windows themes with professional wallpapers, accent colors, sounds, and cursors. When you apply a theme, the tool checks the library first for a matching packaged theme — giving you richer results than custom generation.
+
+```powershell
+# List available packaged themes
+python modules/themes/apply-theme.py --list-library
+
+# Apply a theme (auto-checks library first)
+python modules/themes/apply-theme.py --spec '{"name":"spring blossoms"}'
+
+# Force custom generation (skip library)
+python modules/themes/apply-theme.py --spec '{"name":"ocean","accent_color":"#0077B6","mode":"dark"}' --skip-library
+
+# Manage the library directly
+python modules/themes/msix_handler.py list
+python modules/themes/msix_handler.py rebuild-catalog
+```
+
+To add new themes, drop `.msix` files into `modules/themes/library/packages/` and run `rebuild-catalog`. Edit `library/catalog.json` to add semantic tags for better matching.
+
 ### Usage
 
 ```powershell
@@ -322,11 +352,13 @@ Or tell your AI agent in natural language:
 ### How it works
 
 1. The AI agent interprets your prompt and generates a **theme spec** — picking colors, wallpaper, dark/light mode, and an RGB lighting style
-2. `apply-theme.py` orchestrates three handlers:
+2. `apply-theme.py` **checks the MSIX theme library** for a semantic match against the spec name/colors
+3. **If a library match is found** → extracts and applies the packaged `.deskthemepack` (wallpaper, accent, cursors, sounds). The agent then generates a creative per-lamp keyboard animation to match.
+4. **If no match** → falls back to custom generation:
    - **Wallpaper** — downloads a themed image and sets it (Full screen / Fill mode)
    - **Desktop styling** — sets accent color, taskbar, dark/light mode, transparency via registry
    - **RGB lighting** — starts a palette-driven effect on all Dynamic Lighting devices
-3. Each handler is **capability-aware** — if registry writes or DL devices aren't available, that component is gracefully skipped
+5. Each handler is **capability-aware** — if registry writes or DL devices aren't available, that component is gracefully skipped
 
 ### Theme spec
 

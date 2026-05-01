@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "themes": [
+    {
+      "id": "spring-lantern-blossoms",
+      "name": "Spring Lantern Blossoms",
+      "package_file": "packages/spring-lantern-blossoms.msix",
+      "tags": [
+        "spring",
+        "lantern",
+        "blossoms",
+        "flowers",
+        "cherry",
+        "sakura",
+        "green",
+        "nature",
+        "light",
+        "warm",
+        "garden",
+        "festival",
+        "asian",
+        "peaceful"
+      ],
+      "accent_color": "#7AC0A6",
+      "mode": "light",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Spring lanterns and blossoms with soft green tones"
+    }
+  ]
+}

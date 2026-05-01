@@ -37,6 +37,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from desktop_handler import apply_desktop, check_capability as check_desktop
 from wallpaper_handler import apply_wallpaper, check_capability as check_wallpaper
 from lighting_handler import check_capability as check_lighting, stop_existing as stop_lighting
+from theme_matcher import find_match as find_library_match
+from msix_handler import apply as apply_msix_theme, list_themes as list_library_themes
 
 
 def _hex_to_color_name(hex_color: str) -> str:
@@ -95,13 +97,71 @@ def check_capabilities() -> dict:
     return caps
 
 
-def apply_theme(spec: dict) -> dict:
+def _try_library_match(spec: dict) -> dict | None:
+    """Check the MSIX theme library for a matching packaged theme.
+
+    Returns apply result dict if a match was found and applied, None otherwise.
+    """
+    match = find_library_match(spec=spec)
+    if not match:
+        return None
+
+    theme = match["theme"]
+    confidence = match["confidence"]
+    print(f"📦 Library match: {theme['name']} ({confidence:.0%} confidence)")
+
+    result = apply_msix_theme(theme["id"])
+    if result.get("success"):
+        result["library_match"] = match
+        # Report what the packaged theme includes
+        extras = []
+        if theme.get("has_wallpapers"):
+            extras.append(f"{theme.get('wallpaper_count', '?')} wallpapers")
+        if theme.get("has_sounds"):
+            extras.append("sounds")
+        if theme.get("has_cursors"):
+            extras.append("cursors")
+        if extras:
+            print(f"   Includes: {', '.join(extras)}")
+        print(f"   💡 The agent should generate a matching keyboard animation for this theme.")
+        return result
+
+    print(f"   ⚠️ Library apply failed: {result.get('message')}, falling back to custom")
+    return None
+
+
+def apply_theme(spec: dict, skip_library: bool = False) -> dict:
     """Apply a full theme from a spec dict.
+
+    Checks the MSIX theme library first for a matching packaged theme.
+    Falls back to custom generation if no match or skip_library=True.
 
     Returns a summary dict with results for each component.
     """
     name = spec.get("name", "custom theme")
-    results = {"name": name, "components": {}}
+
+    # Check library first (unless explicitly skipped)
+    if not skip_library:
+        library_result = _try_library_match(spec)
+        if library_result:
+            # Packaged theme applied — return early
+            # DL lighting is NOT applied here; the agent should generate
+            # a creative keyboard animation based on the theme prompt
+            return {
+                "name": name,
+                "source": "library",
+                "library_result": library_result,
+                "components": {
+                    "packaged_theme": {
+                        "success": True,
+                        "message": library_result["message"]
+                    }
+                },
+                "note": "Packaged theme applied (wallpaper, accent, cursors, sounds). "
+                        "Generate a matching per-lamp keyboard animation for this theme."
+            }
+
+    results = {"name": name, "source": "generated", "components": {}}
 
     print(f"🎨 Applying theme: {name}")
     print(f"{'=' * 40}")
@@ -310,7 +370,30 @@ def main():
                         help="Check available capabilities")
     parser.add_argument("--stop-lighting", action="store_true",
                         help="Stop running theme lighting effect")
+    parser.add_argument("--skip-library", action="store_true",
+                        help="Skip MSIX theme library, force custom generation")
+    parser.add_argument("--list-library", action="store_true",
+                        help="List available packaged themes in the library")
     args = parser.parse_args()
+
+    if args.list_library:
+        themes = list_library_themes()
+        if not themes:
+            print("📦 Theme library is empty.")
+            print("   Add .msix files to modules/themes/library/packages/")
+            return
+        print(f"📦 Theme library ({len(themes)} themes):")
+        for t in themes:
+            extras = []
+            if t.get("has_wallpapers"):
+                extras.append(f"{t.get('wallpaper_count', '?')} wallpapers")
+            if t.get("has_sounds"):
+                extras.append("sounds")
+            if t.get("has_cursors"):
+                extras.append("cursors")
+            extra_str = f" ({', '.join(extras)})" if extras else ""
+            print(f"   {t['id']:30s} {t['name']}{extra_str}")
+        return
 
     if args.check:
         caps = check_capabilities()
@@ -334,7 +417,7 @@ def main():
         parser.print_help()
         return
 
-    results = apply_theme(spec)
+    results = apply_theme(spec, skip_library=args.skip_library)
     # Output results as JSON for agent consumption
     print(f"\n__RESULT_JSON__:{json.dumps(results)}")
 

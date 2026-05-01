@@ -240,6 +240,12 @@ Sync keyboard lighting to currently playing Spotify track — album art colors, 
 ### 🎨 Themes (Available)
 Apply full desktop + RGB themes from a single prompt. Changes wallpaper, accent color, taskbar, dark/light mode, transparency, and Dynamic Lighting simultaneously.
 
+**📦 MSIX Theme Library:** The skill includes a library of packaged Windows themes (MSIX) with professional wallpapers, accent colors, sounds, and cursors. When applying a theme, the tool automatically checks the library first. If a packaged theme closely matches the request, it is applied instead of generating a custom theme — giving richer results. The agent does NOT need to change behavior; just generate a spec as usual.
+
+When a packaged theme is applied, the agent should still **generate a matching per-lamp keyboard animation** based on the theme's vibe (the packaged theme doesn't include RGB data).
+
+If no library match is found (or `--skip-library` is used), the tool falls back to custom theme generation via registry + wallpaper download + DL lighting.
+
 **Prerequisites:**
 - Python 3.10+ with `requests` package (`pip install requests`)
 - Registry write access (for desktop styling — gracefully skipped if unavailable)
@@ -249,10 +255,15 @@ Apply full desktop + RGB themes from a single prompt. Changes wallpaper, accent 
 
 | Command | Description |
 |---------|-------------|
-| `python modules/themes/apply-theme.py --spec '<json>'` | Apply a full theme from a JSON spec |
+| `python modules/themes/apply-theme.py --spec '<json>'` | Apply a theme (checks library first, then custom) |
 | `python modules/themes/apply-theme.py --spec-file <path>` | Apply a theme from a JSON file |
+| `python modules/themes/apply-theme.py --skip-library` | Force custom generation, skip library match |
+| `python modules/themes/apply-theme.py --list-library` | List available packaged themes |
 | `python modules/themes/apply-theme.py --check` | Check which theming capabilities are available |
 | `python modules/themes/apply-theme.py --stop-lighting` | Stop the running theme lighting effect |
+| `python modules/themes/msix_handler.py list` | List all themes in the library |
+| `python modules/themes/msix_handler.py apply <theme_id>` | Apply a specific packaged theme by ID |
+| `python modules/themes/msix_handler.py rebuild-catalog` | Rebuild catalog from MSIX packages |
 | `python modules/themes/lighting_handler.py --palette "<colors>" --style <style>` | Run just the RGB lighting effect |
 | `python modules/themes/lighting_handler.py --stop` | Stop the RGB lighting effect |
 
@@ -320,11 +331,12 @@ Wallpapers are cached per theme name in `~/Pictures/themes/` so re-applying a th
 5. **Taskbar**: Usually `true` for bold themes (Shrek green, ocean blue), `false` for subtle/light themes
 6. **DL style**: Match the theme mood — `wave` (flowing/natural), `breathe` (calm/ambient), `shimmer` (sparkly/magical), `static` (clean/minimal), `pulse` (energetic/gaming), `droplet` (water/rain/pond)
 
-**IMPORTANT — Theme styles vs standalone effects:**
-- **Theme styles** (`dl_style` in theme spec) are generic palette-based patterns. They take any set of colors and apply a pattern (wave, breathe, shimmer, etc.). Use these when applying a full theme.
+**IMPORTANT — Library themes vs custom themes vs standalone effects:**
+- **Library themes** (MSIX packages in `modules/themes/library/`) are full Windows themes with wallpapers, accent colors, sounds, and cursors. The tool checks the library automatically when `apply-theme.py --spec` is called. When a library theme matches, the agent should still **generate a creative per-lamp keyboard animation** for the theme.
+- **Custom themes** (generated via registry + wallpaper download) are the fallback when no library match exists. These use `dl_style` for generic palette-based RGB effects.
 - **Standalone effects** (`modules/dynamic-lighting/effects/`) are custom per-lamp animations with unique visuals (koi fish swimming, cherry blossoms falling, shooting stars). They have their own hardcoded colors and physics.
 - When a user asks to **"create a new effect"**, **"make an animation"**, or describes a **specific visual scene** (e.g., "water droplets on a pond", "fireflies in a forest") → **generate a standalone effect script** in `modules/dynamic-lighting/effects/`.
-- When a user asks to **"change my theme"** or **"make everything X"** → use the theme engine with a `dl_style`.
+- When a user asks to **"change my theme"** or **"make everything X"** → use the theme engine (`apply-theme.py --spec`). It will check the library first, then fall back to custom.
 
 **Capability-aware**: The tool auto-detects what's available. If registry writes aren't possible, desktop styling is skipped. If no DL device is found, lighting is skipped. The tool always reports what it applied and what it skipped.
 
@@ -337,7 +349,8 @@ When the user's request involves:
 - **"Cinematic mode", "match lights to screen", "ambilight", "bias light", "movie mode"** → `python modules/dynamic-lighting/lighting.py run-effect cinematic`
 - **Alerts, notifications, "when I get", "flash when", "notify me"** → Use alert-watcher.py CLI commands
 - **Spotify, music, "sync to music", "what's playing", album colors** → Use Spotify module commands
-- **Theme, accent color, dark mode, light mode, wallpaper, "make everything X"** → Use Themes module (`apply-theme.py`) with a `dl_style` for lighting
+- **Theme, accent color, dark mode, light mode, wallpaper, "make everything X"** → Use Themes module (`apply-theme.py --spec`). Library themes are checked first automatically. When a library theme is applied, generate a matching keyboard animation.
 - **Just wallpaper** → Use Themes module with only `wallpaper_url`/`wallpaper_search`/`art_search` fields
 - **Just accent color or dark/light mode** → Use Themes module with only `accent_color`/`mode` fields
-- **"Make everything [theme]"** or **broad personalization** → Use Themes module with full spec (wallpaper + desktop + DL style)
+- **"Make everything [theme]"** or **broad personalization** → Use Themes module with full spec. If a library theme matches, it's applied for richer results (sounds, cursors, wallpaper sets).
+- **"List available themes"** or **"what themes do you have"** → `python modules/themes/apply-theme.py --list-library`

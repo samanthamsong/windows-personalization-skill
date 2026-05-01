@@ -2,6 +2,7 @@
 bin/
 obj/
 *.msix
+!modules/themes/library/packages/*.msix
 
 # IDE
 .vs/
