@@ -4,6 +4,9 @@ obj/
 *.msix
 !modules/themes/library/packages/*.msix
 
+# Theme library cache (extracted deskthemepacks)
+modules/themes/library/.cache/
+
 # IDE
 .vs/
 *.user

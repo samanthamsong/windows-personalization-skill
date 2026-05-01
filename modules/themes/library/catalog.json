@@ -2,6 +2,108 @@
   "version": 1,
   "themes": [
     {
+      "id": "berry-sweet-picnic-club",
+      "name": "Berry Sweet Picnic Club",
+      "package_file": "packages/berry-sweet-picnic-club.msix",
+      "tags": [
+        "berry", "sweet", "picnic", "club", "pink", "pastel",
+        "cute", "summer", "fruit", "strawberry", "dessert", "cottagecore",
+        "warm", "playful", "whimsical", "garden", "outdoor"
+      ],
+      "accent_color": "#E8B9B1",
+      "mode": "light",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Pastel pink picnic aesthetic with berries and sweet treats"
+    },
+    {
+      "id": "blush-drift-disks",
+      "name": "Blush Drift Disks",
+      "package_file": "packages/blush-drift-disks.msix",
+      "tags": [
+        "blush", "drift", "disks", "pink", "coral", "abstract",
+        "geometric", "circles", "modern", "soft", "warm", "gradient",
+        "minimalist", "aesthetic", "dreamy"
+      ],
+      "accent_color": "#FF7573",
+      "mode": "light",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 3,
+      "description": "Soft coral and pink abstract floating disk shapes"
+    },
+    {
+      "id": "floating-daydreams",
+      "name": "Floating Daydreams",
+      "package_file": "packages/floating-daydreams.msix",
+      "tags": [
+        "floating", "daydreams", "purple", "magenta", "dreamy",
+        "clouds", "fantasy", "surreal", "soft", "ethereal", "pastel",
+        "whimsical", "imagination", "relaxing", "calm"
+      ],
+      "accent_color": "#D06FAD",
+      "mode": "light",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 3,
+      "description": "Dreamy purple and magenta floating cloud-like visuals"
+    },
+    {
+      "id": "fluid-textures",
+      "name": "Fluid Textures",
+      "package_file": "packages/fluid-textures.msix",
+      "tags": [
+        "fluid", "textures", "teal", "dark", "abstract", "liquid",
+        "marble", "flowing", "modern", "moody", "deep", "ocean",
+        "water", "sleek", "sophisticated", "elegant"
+      ],
+      "accent_color": "#0C767B",
+      "mode": "dark",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 5,
+      "description": "Dark fluid marble textures in deep teal tones"
+    },
+    {
+      "id": "quiet-current",
+      "name": "Quiet Current",
+      "package_file": "packages/quiet-current.msix",
+      "tags": [
+        "quiet", "current", "teal", "dark", "calm", "serene",
+        "water", "flow", "minimal", "peaceful", "zen", "ocean",
+        "tranquil", "subtle", "deep", "moody"
+      ],
+      "accent_color": "#0C767B",
+      "mode": "dark",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 5,
+      "description": "Dark serene water current textures in calming teal"
+    },
+    {
+      "id": "rainbow-ribbons",
+      "name": "Rainbow Ribbons",
+      "package_file": "packages/rainbow-ribbons.msix",
+      "tags": [
+        "rainbow", "ribbons", "colorful", "purple", "lavender",
+        "vibrant", "fun", "playful", "pride", "gradient", "flowing",
+        "silk", "fabric", "celebration", "bright", "joyful"
+      ],
+      "accent_color": "#B19EF3",
+      "mode": "light",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 3,
+      "description": "Colorful flowing ribbon waves in vibrant rainbow hues"
+    },
+    {
       "id": "spring-lantern-blossoms",
       "name": "Spring Lantern Blossoms",
       "package_file": "packages/spring-lantern-blossoms.msix",
@@ -28,6 +130,23 @@
       "has_wallpapers": true,
       "wallpaper_count": 4,
       "description": "Spring lanterns and blossoms with soft green tones"
+    },
+    {
+      "id": "starlight-courier",
+      "name": "Starlight Courier",
+      "package_file": "packages/starlight-courier.msix",
+      "tags": [
+        "starlight", "courier", "purple", "lavender", "night",
+        "stars", "space", "cosmic", "galaxy", "celestial", "moon",
+        "dreamy", "magical", "fantasy", "delivery", "whimsical"
+      ],
+      "accent_color": "#A19DD1",
+      "mode": "light",
+      "has_sounds": false,
+      "has_cursors": false,
+      "has_wallpapers": true,
+      "wallpaper_count": 4,
+      "description": "Whimsical starlit delivery scenes in soft purple tones"
     }
   ]
 }
