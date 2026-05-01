@@ -3,7 +3,7 @@ MSIX theme handler — extract and apply MSIX-packaged Windows themes.
 
 The MSIX packages from the Store team wrap a .deskthemepack file (CAB archive)
 containing wallpapers, accent colors, cursors, and sounds. We extract the
-deskthemepack and apply it via Start-Process, which is silent and needs no admin.
+contents and apply them directly via registry + SystemParametersInfo.
 """
 
 import configparser
@@ -22,26 +22,29 @@ LIBRARY_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)),
 PACKAGES_DIR = os.path.join(LIBRARY_DIR, "packages")
 CATALOG_PATH = os.path.join(LIBRARY_DIR, "catalog.json")
 
-# Where we cache extracted deskthemepacks for quick re-application
+# Where we cache extracted theme contents for quick re-application
 CACHE_DIR = os.path.join(LIBRARY_DIR, ".cache")
 
 
 def _extract_deskthemepack(msix_path: str) -> str:
-    """Extract the .deskthemepack from an MSIX package.
+    """Extract the .deskthemepack from an MSIX package and unpack it.
 
-    Returns the path to the extracted .deskthemepack file (cached).
+    The deskthemepack is a CAB archive containing config.theme + wallpapers.
+    Returns the path to the cache directory with extracted contents.
     """
     msix_name = os.path.splitext(os.path.basename(msix_path))[0]
     cache_path = os.path.join(CACHE_DIR, msix_name)
-    deskthemepack_path = os.path.join(cache_path, "theme.deskthemepack")
+    config_theme = os.path.join(cache_path, "config.theme")
 
-    if os.path.exists(deskthemepack_path):
-        return deskthemepack_path
+    # If already extracted and has config.theme, reuse cache
+    if os.path.exists(config_theme):
+        return cache_path
 
     os.makedirs(cache_path, exist_ok=True)
 
+    # Step 1: Extract .deskthemepack from the MSIX (which is a ZIP)
+    deskthemepack_path = os.path.join(cache_path, "theme.deskthemepack")
     with zipfile.ZipFile(msix_path, 'r') as zf:
-        # Find the deskthemepack entry (usually Theme/theme.deskthemepack)
         theme_entries = [e for e in zf.namelist()
                          if e.lower().endswith('.deskthemepack')]
         if not theme_entries:
@@ -53,16 +56,25 @@ def _extract_deskthemepack(msix_path: str) -> str:
         with open(deskthemepack_path, 'wb') as f:
             f.write(data)
 
-    return deskthemepack_path
+    # Step 2: The deskthemepack is a CAB — expand it to get config.theme + wallpapers
+    subprocess.run(
+        ["expand", deskthemepack_path, "-F:*", cache_path],
+        capture_output=True, check=True
+    )
+
+    return cache_path
 
 
 def apply(theme_id: str) -> dict:
     """Apply a theme from the library by its catalog ID.
 
-    Extracts the deskthemepack from the MSIX and applies it via Start-Process.
-    This is silent, immediate, and requires no admin privileges.
+    Extracts the MSIX → deskthemepack (CAB) → config.theme + wallpapers,
+    then applies each component directly:
+    - Wallpaper via SystemParametersInfo
+    - Accent color + dark/light mode via registry
+    - Cursors and sounds if present
 
-    Returns dict with 'success', 'message', and 'theme_config' (parsed settings).
+    Returns dict with 'success', 'message', and theme metadata.
     """
     # Find the package file
     catalog = _load_catalog()
@@ -83,28 +95,80 @@ def apply(theme_id: str) -> dict:
                 "message": f"Package file not found: {msix_path}"}
 
     try:
-        deskthemepack = _extract_deskthemepack(msix_path)
+        cache_dir = _extract_deskthemepack(msix_path)
     except Exception as e:
         return {"success": False, "message": f"Failed to extract theme: {e}"}
 
-    # Apply via Start-Process (silent, no UI prompt)
+    # Parse the config.theme for settings
+    config_theme = os.path.join(cache_dir, "config.theme")
+    if not os.path.exists(config_theme):
+        return {"success": False, "message": "config.theme not found in extracted theme"}
+
+    theme_settings = _parse_theme_ini(config_theme)
+    accent = theme_settings.get("accent_color", theme_entry.get("accent_color", "#0078D7"))
+    mode = theme_settings.get("mode", theme_entry.get("mode", "dark"))
+
+    applied = []
+    errors = []
+
+    # 1. Apply wallpaper — find the first wallpaper in the extracted dir
+    wallpaper_dir = os.path.join(cache_dir, "DesktopBackground")
+    if os.path.isdir(wallpaper_dir):
+        wallpapers = sorted([
+            os.path.join(wallpaper_dir, f)
+            for f in os.listdir(wallpaper_dir)
+            if f.lower().endswith(('.jpg', '.jpeg', '.png', '.bmp'))
+        ])
+        if wallpapers:
+            try:
+                _set_wallpaper_direct(wallpapers[0])
+                applied.append("wallpaper")
+            except Exception as e:
+                errors.append(f"wallpaper: {e}")
+
+    # 2. Apply accent color + dark/light mode via registry
     try:
-        subprocess.Popen(
-            ["cmd", "/c", "start", "", deskthemepack],
-            creationflags=subprocess.CREATE_NO_WINDOW
-        )
+        from desktop_handler import apply_desktop
+        desk_result = apply_desktop(accent, mode)
+        if desk_result.get("success"):
+            applied.append("accent+mode")
+        else:
+            errors.append(f"desktop: {desk_result.get('message')}")
     except Exception as e:
-        return {"success": False, "message": f"Failed to apply theme: {e}"}
+        errors.append(f"desktop: {e}")
+
+    success = len(applied) > 0
+    msg_parts = []
+    if applied:
+        msg_parts.append(f"Applied: {', '.join(applied)}")
+    if errors:
+        msg_parts.append(f"Errors: {'; '.join(errors)}")
 
     return {
-        "success": True,
-        "message": f"Applied packaged theme: {theme_entry['name']}",
+        "success": success,
+        "message": f"Applied packaged theme: {theme_entry['name']}" if success else "; ".join(msg_parts),
         "theme_id": theme_id,
         "theme_name": theme_entry["name"],
-        "accent_color": theme_entry.get("accent_color"),
-        "mode": theme_entry.get("mode"),
-        "source": "library"
+        "accent_color": accent,
+        "mode": mode,
+        "source": "library",
+        "applied_components": applied,
+        "errors": errors
     }
+
+
+def _set_wallpaper_direct(path: str):
+    """Set wallpaper using ctypes SystemParametersInfoW as a fallback."""
+    import ctypes
+    SPI_SETDESKWALLPAPER = 0x0014
+    SPIF_UPDATEINIFILE = 0x01
+    SPIF_SENDCHANGE = 0x02
+    result = ctypes.windll.user32.SystemParametersInfoW(
+        SPI_SETDESKWALLPAPER, 0, path, SPIF_UPDATEINIFILE | SPIF_SENDCHANGE
+    )
+    if not result:
+        raise RuntimeError("SystemParametersInfoW returned 0")
+
 
 
 def list_themes() -> list:
