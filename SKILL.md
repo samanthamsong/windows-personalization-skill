@@ -14,7 +14,7 @@ Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, 
 
 **Prerequisites:**
 - Windows 11 22H2+ with a Dynamic Lighting compatible device
-- .NET 9 SDK, Python 3.10+, WinAppCLI
+- .NET 8+ SDK, Python 3.10+, WinAppCLI
 - Driver must be installed to `%LocalAppData%\DynamicLightingDriver\`
 
 **First-time setup:** If the driver is not installed, run setup from the skill directory:
@@ -211,7 +211,7 @@ Sync keyboard lighting to currently playing Spotify track — album art colors, 
 
 **Prerequisites:**
 - Spotify Premium account
-- Python packages: `pip install spotipy Pillow requests`
+- Python packages: `pip install spotipy Pillow requests pycaw comtypes numpy`
 - Spotify Developer App with Client ID (https://developer.spotify.com/dashboard)
 - Run `python modules/spotify/auth.py` once to authenticate
 
@@ -220,6 +220,7 @@ Sync keyboard lighting to currently playing Spotify track — album art colors, 
 | Command | Description |
 |---------|-------------|
 | `python modules/spotify/spotify-sync.py start` | Start music-reactive lighting (full takeover) |
+| `python modules/spotify/spotify-sync.py start --beat-sync` | Beat-reactive mode — keyboard pulses on every beat |
 | `python modules/spotify/spotify-sync.py start --overlay` | Tint current effect with album colors |
 | `python modules/spotify/spotify-sync.py stop` | Stop Spotify sync |
 | `python modules/spotify/spotify-sync.py status` | Show current track, mood, and album colors |
@@ -249,6 +250,7 @@ Apply full desktop + RGB themes from a single prompt. Changes wallpaper, accent 
 | Command | Description |
 |---------|-------------|
 | `python modules/themes/apply-theme.py --spec '<json>'` | Apply a full theme from a JSON spec |
+| `python modules/themes/apply-theme.py --spec-file <path>` | Apply a theme from a JSON file |
 | `python modules/themes/apply-theme.py --check` | Check which theming capabilities are available |
 | `python modules/themes/apply-theme.py --stop-lighting` | Stop the running theme lighting effect |
 | `python modules/themes/lighting_handler.py --palette "<colors>" --style <style>` | Run just the RGB lighting effect |

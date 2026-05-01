@@ -11,7 +11,9 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 | [🔆 Dynamic Lighting](modules/dynamic-lighting/) | ✅ Available | Control RGB devices via CLI + per-lamp Python effects |
 | [🎵 Spotify](modules/spotify/) | ✅ Available | Sync keyboard lighting to Spotify — album colors + mood |
 | [🎨 Themes](modules/themes/) | ✅ Available | Full desktop + RGB theming from a single prompt |
-| [🪟 Windowing](modules/windowing/) | 🔜 Planned | Save, restore, and create aesthetic window layouts |
+| 🔊 Sounds | 🔜 Planned | Sound customization |
+| 🖼️ Wallpaper | 🔜 Planned | Wallpaper management |
+| 🪟 Windowing | 🔜 Planned | Save, restore, and create aesthetic window layouts |
 
 ## 🚀 Quick Start
 
@@ -20,7 +22,7 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 | Requirement | Version | Install |
 |-------------|---------|---------|
 | Windows 11 | 22H2+ | — |
-| .NET SDK | 9.0+ | [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/9.0) |
+| .NET SDK | 8.0+ | [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/9.0) |
 | Python | 3.10+ | [python.org](https://www.python.org/downloads/) or `winget install Python.Python.3.12` |
 | WinAppCLI | 0.2+ | `winget install Microsoft.WinAppCli` |
 | Dynamic Lighting device | — | Any [compatible](https://support.microsoft.com/en-us/windows/control-your-dynamic-lighting-devices-in-windows-8e9f9b1f-6844-4c5e-9873-d836e87fcb7f) RGB keyboard, mouse, light strip, etc. |
@@ -102,6 +104,8 @@ Per-lamp Python scripts that create pixel-level animations on your keyboard.
 | [Rainbow](modules/dynamic-lighting/effects/rainbow.py) | Per-lamp rainbow gradient |
 | [Star Wars Lightsaber](modules/dynamic-lighting/effects/star-wars-lightsaber.py) | Lightsaber ignition effect |
 | [Hello Kitty](modules/dynamic-lighting/effects/hello-kitty.py) | Hello Kitty themed colors |
+| [Fireworks](modules/dynamic-lighting/effects/fireworks.py) | Night sky with fireworks launching, exploding into colorful particle bursts |
+| [Water Droplets](modules/dynamic-lighting/effects/water-droplets.py) | Raindrops on a pond with expanding ripple rings — Monet-inspired |
 | [Cinematic](modules/dynamic-lighting/effects/cinematic.py) | Screen-reactive ambient lighting — keyboard mirrors your display |
 
 ## 🤖 Installing as a Copilot Skill
