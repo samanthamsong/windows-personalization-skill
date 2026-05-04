@@ -2,7 +2,10 @@
 Cinematic Mode — screen-reactive ambient lighting
 ===================================================
 Captures the screen and maps dominant colors from each region to the
-corresponding keyboard zone, creating a bias-light / Ambilight effect.
+corresponding device lamps, creating a bias-light / Ambilight effect.
+
+Works across all connected Dynamic Lighting devices (keyboards, mice,
+lamps, mousepads, headsets, light strips).
 
 Usage:
     python cinematic.py
@@ -11,16 +14,13 @@ Usage:
 """
 
 import os
-import subprocess
-import json
 import time
-import threading
 import sys
-import math
 import argparse
 import colorsys
 import numpy as np
 from mss import MSS
+from _runner import EffectRunner
 
 # === ARGS ===
 parser = argparse.ArgumentParser(description="Cinematic mode — screen-reactive lighting")
@@ -29,51 +29,16 @@ parser.add_argument("--saturation", type=float, default=1.3, help="Color saturat
 parser.add_argument("--brightness", type=float, default=1.0, help="Brightness multiplier (1.0 = no change)")
 cli_args = parser.parse_args()
 
-# === LIGHTING DRIVER ===
-# Search for driver in known locations
-_candidates = [
-    os.path.join(os.environ.get('LOCALAPPDATA', ''), 'DynamicLightingDriver', 'DynamicLightingDriver.exe'),
-    os.path.join(os.path.expanduser('~'), 'DLDriverBin', 'DynamicLightingDriver.exe'),
-]
-EXE = next((p for p in _candidates if os.path.isfile(p)), _candidates[0])
-OUT_DIR = os.path.dirname(os.path.abspath(__file__))
-
-proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
-threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
-
-def send(cmd):
-    proc.stdin.write((cmd + '\n').encode())
-    proc.stdin.flush()
-
-def recv():
-    return proc.stdout.readline().decode().strip()
-
-ready = recv()
-assert ready == 'READY', f'Driver not ready: {ready}'
-
-send("SET_EFFECT_NAME Cinematic Mode")
-recv()
+# === LIGHTING DRIVER (multi-device) ===
+runner = EffectRunner("Cinematic Mode")
 
 # Keep the driver window in foreground so LampArray stays available
-send("HOLD_FOREGROUND on")
-recv()
+runner.send("HOLD_FOREGROUND on")
+runner.recv()
 
-# === KEYBOARD LAYOUT (87-key TKL) ===
+# === SCREEN GRID SETTINGS ===
 GRID_COLS = 15
 GRID_ROWS = 7
-
-rows = [15, 15, 15, 14, 13, 8, 7]
-row_offsets = [0, 0, 0.075, 0.12, 0.15, 0, 0.85]
-row_kw = [1, 1, 1, 1, 1, 1.5, 1]
-
-lamps = []
-idx = 0
-for ri, count in enumerate(rows):
-    for ci in range(count):
-        x = (row_offsets[ri] + ci * row_kw[ri]) / 15.0
-        y = ri / 6.0
-        lamps.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
-        idx += 1
 
 
 def boost_saturation(r, g, b, factor, brightness):
@@ -85,26 +50,45 @@ def boost_saturation(r, g, b, factor, brightness):
     return int(r2 * 255), int(g2 * 255), int(b2 * 255)
 
 
-def lerp_color(c1, c2, t):
-    """Linearly interpolate between two RGB tuples."""
-    t = max(0.0, min(1.0, t))
-    return tuple(int(c1[i] + (c2[i] - c1[i]) * t) for i in range(3))
-
-
 # === SCREEN CAPTURE ===
-sct = MSS()
-monitor = sct.monitors[cli_args.monitor]
+sct = None
+monitor = None
 
-# Previous frame's grid for temporal smoothing
 prev_grid = None
 SMOOTHING = 0.4  # 0 = no smoothing, 1 = fully previous frame
+
+MAX_CAPTURE_RETRIES = 3
+
+
+def _init_mss():
+    """Create (or recreate) the MSS capture instance."""
+    global sct, monitor
+    if sct is not None:
+        try:
+            sct.close()
+        except Exception:
+            pass
+    sct = MSS()
+    monitor = sct.monitors[cli_args.monitor]
+
+
+_init_mss()
 
 
 def capture_screen_grid():
     """Capture the screen and downsample to a GRID_ROWS x GRID_COLS color grid."""
     global prev_grid
 
-    frame = sct.grab(monitor)
+    for attempt in range(MAX_CAPTURE_RETRIES):
+        try:
+            frame = sct.grab(monitor)
+            break
+        except Exception:
+            if attempt < MAX_CAPTURE_RETRIES - 1:
+                time.sleep(0.5)
+                _init_mss()
+            else:
+                raise
     # Convert BGRA to RGB numpy array, then resize to grid dimensions
     img = np.frombuffer(frame.raw, dtype=np.uint8).reshape(frame.height, frame.width, 4)
     # Drop alpha, convert BGR -> RGB
@@ -133,11 +117,10 @@ def capture_screen_grid():
     return grid
 
 
-def render_frame_from_grid(grid):
-    """Map the screen color grid to keyboard lamps."""
+def render_device_from_grid(device, grid):
+    """Map the screen color grid to a device's lamps."""
     colors = {}
-    for lamp in lamps:
-        # Map lamp (x, y) position to grid cell
+    for lamp in device.lamps:
         gx = min(int(lamp['x'] * GRID_COLS), GRID_COLS - 1)
         gy = min(int(lamp['y'] * GRID_ROWS), GRID_ROWS - 1)
 
@@ -147,9 +130,12 @@ def render_frame_from_grid(grid):
     return colors
 
 
-# === ANIMATION LOOP ===
+# === ANIMATION LOOP (multi-device) ===
 FPS = 10
-print(f"Cinematic mode active (~{FPS}fps). Capturing monitor {cli_args.monitor} ({monitor['width']}x{monitor['height']}).")
+device_count = len(runner.dm.devices)
+lamp_count = sum(len(d.lamps) for d in runner.dm.devices)
+print(f"Cinematic mode active on {device_count} device(s), {lamp_count} lamps (~{FPS}fps).")
+print(f"Capturing monitor {cli_args.monitor} ({monitor['width']}x{monitor['height']}).")
 print("Press Ctrl+C to stop.")
 sys.stdout.flush()
 
@@ -159,34 +145,16 @@ frame_count = 0
 start = time.time()
 try:
     while True:
-        # Alert flash coordination
+        # Alert flash coordination (handled by runner for all devices)
         if os.path.exists(PAUSE_FILE):
-            try:
-                with open(PAUSE_FILE, 'r') as f:
-                    alert_data = f.read().strip()
-                parts = alert_data.split('|')
-                flash_color = parts[0] if parts[0].startswith('#') else '#FF69B4'
-                flash_duration = float(parts[1]) if len(parts) > 1 else 3.0
-                all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
-                flash_start = time.time()
-                while time.time() - flash_start < flash_duration:
-                    send(f"SET_LAMPS {json.dumps(all_flash)}")
-                    recv()
-                    frame_count += 1
-                    time.sleep(0.125)
-            except Exception as e:
-                print(f"Alert flash error: {e}")
-            finally:
-                try:
-                    os.remove(PAUSE_FILE)
-                except Exception:
-                    pass
+            runner._handle_alert_flash(frame_count)
             continue
 
         grid = capture_screen_grid()
-        colors = render_frame_from_grid(grid)
-        send(f"SET_LAMPS {json.dumps(colors)}")
-        recv()
+        frames = {}
+        for device in runner.dm.devices:
+            frames[device.id] = render_device_from_grid(device, grid)
+        runner.dm.send_frames(frames)
 
         frame_count += 1
         elapsed = time.time() - start
@@ -195,4 +163,3 @@ try:
             time.sleep(target - elapsed)
 except KeyboardInterrupt:
     print("\nStopped cinematic mode.")
-    proc.terminate()
