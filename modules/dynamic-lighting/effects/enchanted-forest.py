@@ -1,80 +1,53 @@
-import os
-import subprocess, json, time, threading
+import math
+import random
+from _runner import EffectRunner, lerp, hex_color
 
-EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
-proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
-threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
+runner = EffectRunner("Enchanted Forest")
 
-def send(cmd):
-    proc.stdin.write((cmd + '\n').encode())
-    proc.stdin.flush()
+DARK_GREEN = (10, 46, 10)     # #0A2E0A
+BRIGHT_GREEN = (27, 94, 32)   # #1B5E20
+BLUE_MIST = (0, 77, 102)      # #004D66
+GOLD = (255, 224, 130)         # #FFE082
 
-def recv():
-    return proc.stdout.readline().decode().strip()
+# Firefly sparkle positions
+NUM_FIREFLIES = 10
+fly_x = [random.random() for _ in range(NUM_FIREFLIES)]
+fly_y = [random.random() for _ in range(NUM_FIREFLIES)]
+fly_speed = [random.uniform(2.5, 5.0) for _ in range(NUM_FIREFLIES)]
+fly_phase = [random.uniform(0, math.tau) for _ in range(NUM_FIREFLIES)]
 
-# Wait for driver ready
-ready = recv()
-assert ready == 'READY', f'Driver not ready: {ready}'
 
-# Enchanted forest: deep green breathing base + golden firefly twinkle + soft blue mist wave
-layers = json.dumps([
-    {"pattern": "breathe", "base_color": "#0A2E0A", "accent_color": "#1B5E20", "speed": 0.25, "density": 1.0, "direction": "center_out", "z_index": 0},
-    {"pattern": "wave", "base_color": "#0A2E0A", "accent_color": "#004D66", "speed": 0.15, "density": 0.4, "direction": "left_to_right", "z_index": 1},
-    {"pattern": "twinkle", "base_color": "#0A2E0A", "accent_color": "#FFE082", "speed": 0.6, "density": 0.15, "z_index": 2}
-], separators=(',', ':'))
+def render_frame(device, t):
+    colors = {}
+    for lamp in device.lamps:
+        lx, ly = lamp["x"], lamp["y"]
 
-send(f'CREATE_EFFECT layered layers={layers}')
-resp = recv()
-print(resp, flush=True)
+        # Layer 0: Deep green breathing base
+        breathe = 0.5 + 0.5 * math.sin(t * 1.0)
+        color = lerp(DARK_GREEN, BRIGHT_GREEN, breathe)
 
-print(f'\nServer PID: {proc.pid} — Ctrl+C to stop', flush=True)
-# === LAMP LAYOUT (for alert coordination) ===
-rows = [15, 15, 15, 14, 13, 8, 7]
-row_offsets = [0, 0, 0.075, 0.12, 0.15, 0, 0.85]
-row_kw = [1, 1, 1, 1, 1, 1.5, 1]
+        # Layer 1: Slow blue mist wave
+        wave = 0.5 + 0.5 * math.sin((lx * 3.0) - t * 1.2)
+        color = lerp(color, BLUE_MIST, wave * 0.35)
 
-lamps = []
-idx = 0
-for ri, count in enumerate(rows):
-    for ci in range(count):
-        x = (row_offsets[ri] + ci * row_kw[ri]) / 15.0
-        y = ri / 6.0
-        lamps.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
-        idx += 1
+        # Layer 2: Golden firefly sparkles
+        best_glow = 0.0
+        for i in range(NUM_FIREFLIES):
+            dx = lx - fly_x[i]
+            dy = ly - fly_y[i]
+            dist = math.sqrt(dx * dx + dy * dy)
+            if dist < 0.25:
+                pulse = max(0.0, math.sin(t * fly_speed[i] + fly_phase[i]))
+                # Sharp on/off blink
+                blink = 1.0 if pulse > 0.6 else 0.0
+                intensity = blink * (1.0 - dist / 0.25)
+                best_glow = max(best_glow, intensity)
 
-PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rules', '.pause')
+        if best_glow > 0.1:
+            color = lerp(color, GOLD, best_glow * 0.9)
 
-frame = 0
-try:
-    while True:
-        # Alert flash coordination — check for notification override
-        if os.path.exists(PAUSE_FILE):
-            try:
-                with open(PAUSE_FILE, 'r') as f:
-                    alert_data = f.read().strip()
-                parts = alert_data.split('|')
-                flash_color = parts[0] if parts[0].startswith('#') else '#FF69B4'
-                flash_duration = float(parts[1]) if len(parts) > 1 else 3.0
-                all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
-                flash_start = time.time()
-                while time.time() - flash_start < flash_duration:
-                    send(f"SET_LAMPS {json.dumps(all_flash)}")
-                    recv()
-                    frame += 1
-                    time.sleep(0.125)
-            except Exception as e:
-                print(f"Alert flash error: {e}")
-            finally:
-                try:
-                    os.remove(PAUSE_FILE)
-                except Exception:
-                    pass
-            # Resume the effect after flash
-            send(f'CREATE_EFFECT layered layers={layers}')
-            recv()
-            continue
-        if proc.poll() is not None:
-            break
-        time.sleep(0.25)
-except KeyboardInterrupt:
-    proc.terminate()
+        colors[str(lamp["idx"])] = hex_color(*color)
+    return colors
+
+
+runner.run(render_frame, fps=8)

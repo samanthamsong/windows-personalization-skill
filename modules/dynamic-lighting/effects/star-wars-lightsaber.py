@@ -1,77 +1,58 @@
-import os
-import subprocess, json, time, threading, sys
+import math
+import random
+from _runner import EffectRunner, lerp, hex_color
 
-EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
-proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
-threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
+runner = EffectRunner("Star Wars Lightsaber")
 
-def send(cmd):
-    proc.stdin.write((cmd + '\n').encode())
-    proc.stdin.flush()
+SITH_RED = (204, 0, 0)         # #CC0000
+SITH_GLOW = (255, 40, 40)
+JEDI_BLUE = (0, 68, 255)       # #0044FF
+JEDI_GLOW = (60, 120, 255)
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
 
-def recv():
-    return proc.stdout.readline().decode().strip()
+# Spark positions for clash effect
+NUM_SPARKS = 8
+spark_phase = [random.uniform(0, math.tau) for _ in range(NUM_SPARKS)]
+spark_speed = [random.uniform(4.0, 8.0) for _ in range(NUM_SPARKS)]
+spark_offset = [random.uniform(-0.15, 0.15) for _ in range(NUM_SPARKS)]
 
-# Wait for driver ready
-ready = recv()
-assert ready == 'READY', f'Driver not ready: {ready}'
 
-# 3. Apply Star Wars lightsaber duel effect
-#    Sith red vs Jedi blue — a dramatic wave sweeping across the keyboard
-effect_cmd = 'CREATE_EFFECT wave base_color=#CC0000 accent_color=#0044FF speed=0.8 density=0.5 direction=left_to_right'
-send(effect_cmd)
-resp = recv()
-print('⚔️  Star Wars lightsaber duel activated!', flush=True)
-print('Effect response:', resp, flush=True)
-print(f'Driver PID: {proc.pid} — keeping alive (Ctrl+C to stop)...', flush=True)
+def render_frame(device, t):
+    colors = {}
+    # Clash point oscillates around the middle
+    clash = 0.5 + 0.15 * math.sin(t * 1.2)
 
-# === LAMP LAYOUT (for alert coordination) ===
-rows = [15, 15, 15, 14, 13, 8, 7]
-row_offsets = [0, 0, 0.075, 0.12, 0.15, 0, 0.85]
-row_kw = [1, 1, 1, 1, 1, 1.5, 1]
+    for lamp in device.lamps:
+        lx, ly = lamp["x"], lamp["y"]
+        dist_to_clash = abs(lx - clash)
 
-lamps = []
-idx = 0
-for ri, count in enumerate(rows):
-    for ci in range(count):
-        x = (row_offsets[ri] + ci * row_kw[ri]) / 15.0
-        y = ri / 6.0
-        lamps.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
-        idx += 1
+        if lx < clash:
+            # Red (Sith) side — brighter closer to clash
+            intensity = max(0.3, 1.0 - (clash - lx) * 1.5)
+            color = lerp(SITH_RED, SITH_GLOW, intensity)
+        else:
+            # Blue (Jedi) side — brighter closer to clash
+            intensity = max(0.3, 1.0 - (lx - clash) * 1.5)
+            color = lerp(JEDI_BLUE, JEDI_GLOW, intensity)
 
-PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rules', '.pause')
+        # White sparks/flashes near the clash point
+        if dist_to_clash < 0.20:
+            best_spark = 0.0
+            for i in range(NUM_SPARKS):
+                spark_x = clash + spark_offset[i]
+                sdist = abs(lx - spark_x)
+                if sdist < 0.15:
+                    pulse = max(0.0, math.sin(t * spark_speed[i] + spark_phase[i]))
+                    flash = 1.0 if pulse > 0.7 else 0.0
+                    si = flash * (1.0 - sdist / 0.15)
+                    best_spark = max(best_spark, si)
 
-frame = 0
-try:
-    while True:
-        # Alert flash coordination — check for notification override
-        if os.path.exists(PAUSE_FILE):
-            try:
-                with open(PAUSE_FILE, 'r') as f:
-                    alert_data = f.read().strip()
-                parts = alert_data.split('|')
-                flash_color = parts[0] if parts[0].startswith('#') else '#FF69B4'
-                flash_duration = float(parts[1]) if len(parts) > 1 else 3.0
-                all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
-                flash_start = time.time()
-                while time.time() - flash_start < flash_duration:
-                    send(f"SET_LAMPS {json.dumps(all_flash)}")
-                    recv()
-                    frame += 1
-                    time.sleep(0.125)
-            except Exception as e:
-                print(f"Alert flash error: {e}")
-            finally:
-                try:
-                    os.remove(PAUSE_FILE)
-                except Exception:
-                    pass
-            # Resume the effect after flash
-            send(effect_cmd)
-            recv()
-            continue
-        if proc.poll() is not None:
-            break
-        time.sleep(0.25)
-except KeyboardInterrupt:
-    proc.terminate()
+            if best_spark > 0.1:
+                color = lerp(color, WHITE, best_spark * 0.9)
+
+        colors[str(lamp["idx"])] = hex_color(*color)
+    return colors
+
+
+runner.run(render_frame, fps=8)

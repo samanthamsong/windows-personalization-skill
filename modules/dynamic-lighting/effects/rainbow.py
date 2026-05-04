@@ -1,77 +1,19 @@
-import os
-import subprocess, json, time, threading, sys
+import math
+import colorsys
+from _runner import EffectRunner, hex_color
 
-EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
-proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
-threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
+runner = EffectRunner("Rainbow")
 
-def send(cmd):
-    proc.stdin.write((cmd + '\n').encode())
-    proc.stdin.flush()
 
-def recv():
-    return proc.stdout.readline().decode().strip()
+def render_frame(device, t):
+    colors = {}
+    for lamp in device.lamps:
+        lx = lamp["x"]
+        # Hue shifts based on x position and time for a cycling rainbow
+        hue = (lx + t * 0.15) % 1.0
+        r, g, b = colorsys.hsv_to_rgb(hue, 1.0, 1.0)
+        colors[str(lamp["idx"])] = hex_color(r * 255, g * 255, b * 255)
+    return colors
 
-# Wait for driver ready
-ready = recv()
-assert ready == 'READY', f'Driver not ready: {ready}'
 
-# 3. Apply a rainbow gradient effect - each lamp gets a different hue
-#    based on its physical position across the keyboard
-effect_cmd = 'CREATE_EFFECT wave base_color=#FF0000 accent_color=#0000FF speed=0.0 density=1.0 direction=left_to_right'
-send(effect_cmd)
-resp = recv()
-print('🌈 Rainbow per-lamp effect activated!', flush=True)
-print('Effect response:', resp, flush=True)
-print(f'Driver PID: {proc.pid} — keeping alive (Ctrl+C to stop)...', flush=True)
-
-# === LAMP LAYOUT (for alert coordination) ===
-rows = [15, 15, 15, 14, 13, 8, 7]
-row_offsets = [0, 0, 0.075, 0.12, 0.15, 0, 0.85]
-row_kw = [1, 1, 1, 1, 1, 1.5, 1]
-
-lamps = []
-idx = 0
-for ri, count in enumerate(rows):
-    for ci in range(count):
-        x = (row_offsets[ri] + ci * row_kw[ri]) / 15.0
-        y = ri / 6.0
-        lamps.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
-        idx += 1
-
-PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rules', '.pause')
-
-frame = 0
-try:
-    while True:
-        # Alert flash coordination — check for notification override
-        if os.path.exists(PAUSE_FILE):
-            try:
-                with open(PAUSE_FILE, 'r') as f:
-                    alert_data = f.read().strip()
-                parts = alert_data.split('|')
-                flash_color = parts[0] if parts[0].startswith('#') else '#FF69B4'
-                flash_duration = float(parts[1]) if len(parts) > 1 else 3.0
-                all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
-                flash_start = time.time()
-                while time.time() - flash_start < flash_duration:
-                    send(f"SET_LAMPS {json.dumps(all_flash)}")
-                    recv()
-                    frame += 1
-                    time.sleep(0.125)
-            except Exception as e:
-                print(f"Alert flash error: {e}")
-            finally:
-                try:
-                    os.remove(PAUSE_FILE)
-                except Exception:
-                    pass
-            # Resume the effect after flash
-            send(effect_cmd)
-            recv()
-            continue
-        if proc.poll() is not None:
-            break
-        time.sleep(0.25)
-except KeyboardInterrupt:
-    proc.terminate()
+runner.run(render_frame, fps=8)

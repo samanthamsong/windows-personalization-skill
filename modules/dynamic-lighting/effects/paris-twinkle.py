@@ -1,75 +1,51 @@
-import os
-import subprocess, json, time, threading, sys
+import math
+import random
+from _runner import EffectRunner, lerp, hex_color
 
-EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
-proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
-threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
+runner = EffectRunner("Paris Twinkle")
 
-def send(cmd):
-    proc.stdin.write((cmd + '\n').encode())
-    proc.stdin.flush()
+NAVY = (13, 27, 62)            # #0D1B3E
+NAVY_LIGHT = (20, 40, 80)
+GOLD = (255, 209, 128)         # #FFD180
+WARM_WHITE = (255, 240, 210)
 
-def recv():
-    return proc.stdout.readline().decode().strip()
+# Generate many star sparkles at different speeds for a rich city-lights feel
+NUM_STARS = 20
+star_x = [random.random() for _ in range(NUM_STARS)]
+star_y = [random.random() for _ in range(NUM_STARS)]
+star_speed = [random.uniform(1.5, 6.0) for _ in range(NUM_STARS)]
+star_phase = [random.uniform(0, math.tau) for _ in range(NUM_STARS)]
+star_color = [random.choice([GOLD, WARM_WHITE]) for _ in range(NUM_STARS)]
 
-# Wait for driver ready
-ready = recv()
-assert ready == 'READY', f'Driver not ready: {ready}'
 
-# 3. Apply Paris night twinkle effect
-effect_cmd = 'CREATE_EFFECT twinkle base_color=#0D1B3E accent_color=#FFD180 speed=0.5 density=0.35'
-send(effect_cmd)
-resp = recv()
-print('Effect applied:', resp, flush=True)
-print(f'Driver PID: {proc.pid} — keeping alive...', flush=True)
+def render_frame(device, t):
+    colors = {}
+    for lamp in device.lamps:
+        lx, ly = lamp["x"], lamp["y"]
 
-# === LAMP LAYOUT (for alert coordination) ===
-rows = [15, 15, 15, 14, 13, 8, 7]
-row_offsets = [0, 0, 0.075, 0.12, 0.15, 0, 0.85]
-row_kw = [1, 1, 1, 1, 1, 1.5, 1]
+        # Dark navy base with subtle breathing
+        breathe = 0.5 + 0.5 * math.sin(t * 0.6)
+        color = lerp(NAVY, NAVY_LIGHT, breathe * 0.3)
 
-lamps = []
-idx = 0
-for ri, count in enumerate(rows):
-    for ci in range(count):
-        x = (row_offsets[ri] + ci * row_kw[ri]) / 15.0
-        y = ri / 6.0
-        lamps.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
-        idx += 1
+        # Golden sparkle stars twinkling at different speeds
+        best_star = 0.0
+        best_sc = GOLD
+        for i in range(NUM_STARS):
+            dx = lx - star_x[i]
+            dy = ly - star_y[i]
+            dist = math.sqrt(dx * dx + dy * dy)
+            if dist < 0.25:
+                pulse = max(0.0, math.sin(t * star_speed[i] + star_phase[i]))
+                intensity = pulse * pulse * (1.0 - dist / 0.25)
+                if intensity > best_star:
+                    best_star = intensity
+                    best_sc = star_color[i]
 
-PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rules', '.pause')
+        if best_star > 0.05:
+            color = lerp(color, best_sc, best_star * 0.9)
 
-frame = 0
-try:
-    while True:
-        # Alert flash coordination — check for notification override
-        if os.path.exists(PAUSE_FILE):
-            try:
-                with open(PAUSE_FILE, 'r') as f:
-                    alert_data = f.read().strip()
-                parts = alert_data.split('|')
-                flash_color = parts[0] if parts[0].startswith('#') else '#FF69B4'
-                flash_duration = float(parts[1]) if len(parts) > 1 else 3.0
-                all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
-                flash_start = time.time()
-                while time.time() - flash_start < flash_duration:
-                    send(f"SET_LAMPS {json.dumps(all_flash)}")
-                    recv()
-                    frame += 1
-                    time.sleep(0.125)
-            except Exception as e:
-                print(f"Alert flash error: {e}")
-            finally:
-                try:
-                    os.remove(PAUSE_FILE)
-                except Exception:
-                    pass
-            # Resume the effect after flash
-            send(effect_cmd)
-            recv()
-            continue
-        if proc.poll() is not None:
-            break
-        time.sleep(0.25)
-except KeyboardInterrupt:
-    proc.terminate()
+        colors[str(lamp["idx"])] = hex_color(*color)
+    return colors
+
+
+runner.run(render_frame, fps=8)

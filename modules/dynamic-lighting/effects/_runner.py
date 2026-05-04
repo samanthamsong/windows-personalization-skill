@@ -103,6 +103,9 @@ class EffectRunner:
         self.send("HOLD_FOREGROUND on")
         self.recv()
 
+        # Give the system time to grant device access
+        time.sleep(2)
+
         # Discover all connected devices
         self.dm = DeviceManager(self.send, self.recv)
         self.dm.discover()

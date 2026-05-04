@@ -1,77 +1,77 @@
-import os
-import subprocess, json, time, threading, sys
+import math
+import random
+from _runner import EffectRunner, lerp, hex_color
 
-EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
-proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
-threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
+runner = EffectRunner("Hello Kitty")
 
-def send(cmd):
-    proc.stdin.write((cmd + '\n').encode())
-    proc.stdin.flush()
+# Palette
+HOT_PINK = (255, 105, 180)
+SOFT_PINK = (255, 182, 213)
+WHITE = (255, 255, 255)
+BOW_RED = (255, 60, 80)
 
-def recv():
-    return proc.stdout.readline().decode().strip()
+# Twinkling sparkles — larger and brighter
+NUM_SPARKLES = 20
+sparkles = [
+    {
+        "x": random.random(),
+        "y": random.random(),
+        "speed": random.uniform(2.0, 4.0),
+        "phase": random.random() * math.tau,
+        "radius": random.uniform(0.15, 0.30),
+    }
+    for _ in range(NUM_SPARKLES)
+]
 
-# Wait for driver ready
-ready = recv()
-assert ready == 'READY', f'Driver not ready: {ready}'
+# Bow-red accent points that pulse
+NUM_BOWS = 5
+bows = [
+    {
+        "x": random.uniform(0.1, 0.9),
+        "y": random.uniform(0.1, 0.9),
+        "speed": random.uniform(0.6, 1.2),
+        "phase": random.random() * math.tau,
+        "radius": random.uniform(0.15, 0.25),
+    }
+    for _ in range(NUM_BOWS)
+]
 
-# 3. Apply Hello Kitty effect
-#    Soft pink base with white twinkle accents — cute and dreamy
-effect_cmd = 'CREATE_EFFECT twinkle base_color=#FF69B4 accent_color=#FFFFFF speed=0.3 density=0.25'
-send(effect_cmd)
-resp = recv()
-print('🎀 Hello Kitty effect activated!', flush=True)
-print('Effect response:', resp, flush=True)
-print(f'Driver PID: {proc.pid} — keeping alive (Ctrl+C to stop)...', flush=True)
 
-# === LAMP LAYOUT (for alert coordination) ===
-rows = [15, 15, 15, 14, 13, 8, 7]
-row_offsets = [0, 0, 0.075, 0.12, 0.15, 0, 0.85]
-row_kw = [1, 1, 1, 1, 1, 1.5, 1]
+def render_frame(device, t):
+    colors = {}
+    for lamp in device.lamps:
+        lx, ly = lamp["x"], lamp["y"]
 
-lamps = []
-idx = 0
-for ri, count in enumerate(rows):
-    for ci in range(count):
-        x = (row_offsets[ri] + ci * row_kw[ri]) / 15.0
-        y = ri / 6.0
-        lamps.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
-        idx += 1
+        # Base: bold pink sweep that moves across the keyboard
+        wave = math.sin(lx * 4 - t * 1.5) * 0.5 + 0.5
+        base = lerp(HOT_PINK, SOFT_PINK, wave)
+        r, g, b = base
 
-PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rules', '.pause')
+        # White sparkle twinkles — bold pop-in/pop-out
+        for s in sparkles:
+            dx = lx - s["x"]
+            dy = ly - s["y"]
+            dist = math.sqrt(dx * dx + dy * dy)
+            if dist < s["radius"]:
+                raw = math.sin(t * s["speed"] + s["phase"])
+                brightness = max(0, raw) ** 0.5  # sharper on/off
+                brightness *= 1.0 - (dist / s["radius"])
+                blended = lerp((r, g, b), WHITE, brightness * 0.9)
+                r, g, b = blended
 
-frame = 0
-try:
-    while True:
-        # Alert flash coordination — check for notification override
-        if os.path.exists(PAUSE_FILE):
-            try:
-                with open(PAUSE_FILE, 'r') as f:
-                    alert_data = f.read().strip()
-                parts = alert_data.split('|')
-                flash_color = parts[0] if parts[0].startswith('#') else '#FF69B4'
-                flash_duration = float(parts[1]) if len(parts) > 1 else 3.0
-                all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
-                flash_start = time.time()
-                while time.time() - flash_start < flash_duration:
-                    send(f"SET_LAMPS {json.dumps(all_flash)}")
-                    recv()
-                    frame += 1
-                    time.sleep(0.125)
-            except Exception as e:
-                print(f"Alert flash error: {e}")
-            finally:
-                try:
-                    os.remove(PAUSE_FILE)
-                except Exception:
-                    pass
-            # Resume the effect after flash
-            send(effect_cmd)
-            recv()
-            continue
-        if proc.poll() is not None:
-            break
-        time.sleep(0.25)
-except KeyboardInterrupt:
-    proc.terminate()
+        # Bow-red accent pulses
+        for bow in bows:
+            dx = lx - bow["x"]
+            dy = ly - bow["y"]
+            dist = math.sqrt(dx * dx + dy * dy)
+            if dist < bow["radius"]:
+                pulse = max(0, math.sin(t * bow["speed"] + bow["phase"]))
+                intensity = pulse * (1.0 - dist / bow["radius"]) * 0.7
+                blended = lerp((r, g, b), BOW_RED, intensity)
+                r, g, b = blended
+
+        colors[str(lamp["idx"])] = hex_color(int(r), int(g), int(b))
+    return colors
+
+
+runner.run(render_frame, fps=8)

@@ -67,6 +67,12 @@ public sealed class LampArrayService : IDisposable
                 continue;
             }
 
+            // Cache so GetDeviceAsync reuses the same instance
+            lock (_sync)
+            {
+                _lampArrayCache[device.Id] = lampArray;
+            }
+
             results.Add(BuildLampArrayInfo(device.Id, device.Name, lampArray));
         }
 

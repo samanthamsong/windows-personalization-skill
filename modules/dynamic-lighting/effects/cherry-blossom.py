@@ -1,107 +1,51 @@
-import os
-import subprocess, json, time, threading
+import math
+import random
+from _runner import EffectRunner, lerp, hex_color
 
-EXE = os.path.join(os.environ.get('LOCALAPPDATA', os.path.join(os.path.expanduser('~'), 'AppData', 'Local')), 'DynamicLightingDriver', 'DynamicLightingDriver.exe')
-proc = subprocess.Popen([EXE], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=0)
-threading.Thread(target=lambda: [proc.stderr.readline() for _ in iter(int, 1)], daemon=True).start()
+runner = EffectRunner("Cherry Blossom")
 
-def send(cmd):
-    proc.stdin.write((cmd + '\n').encode())
-    proc.stdin.flush()
+PINK_BASE = (255, 183, 197)    # #FFB7C5
+PINK_LIGHT = (255, 221, 225)   # #FFDDE1
+SAKURA_DEEP = (232, 144, 156)  # #E8909C
+WHITE = (255, 255, 255)        # #FFFFFF
 
-def recv():
-    return proc.stdout.readline().decode().strip()
+# Pre-generate sparkle phases for petal twinkles
+NUM_SPARKLES = 12
+sparkle_x = [random.random() for _ in range(NUM_SPARKLES)]
+sparkle_y = [random.random() for _ in range(NUM_SPARKLES)]
+sparkle_speed = [random.uniform(2.0, 5.0) for _ in range(NUM_SPARKLES)]
+sparkle_phase = [random.uniform(0, math.tau) for _ in range(NUM_SPARKLES)]
 
-# Wait for driver ready
-ready = recv()
-assert ready == 'READY', f'Driver not ready: {ready}'
 
-# 3. Apply falling cherry blossom effect
-#    Layer 0: Soft pink glow breathing gently — the blush of spring air
-#    Layer 1: Gentle wave of deeper sakura pink drifting across — wind through the branches
-#    Layer 2: Sparse white-pink twinkle — individual petals catching the light as they fall
-layers = json.dumps([
-    {
-        "pattern": "breathe",
-        "base_color": "#FFB7C5",
-        "accent_color": "#FFDDE1",
-        "speed": 0.15,
-        "density": 1.0,
-        "direction": "center_out",
-        "z_index": 0
-    },
-    {
-        "pattern": "wave",
-        "base_color": "#FFB7C5",
-        "accent_color": "#E8909C",
-        "speed": 0.3,
-        "density": 0.6,
-        "direction": "left_to_right",
-        "z_index": 1
-    },
-    {
-        "pattern": "twinkle",
-        "base_color": "#FFB7C5",
-        "accent_color": "#FFFFFF",
-        "speed": 0.5,
-        "density": 0.3,
-        "z_index": 2
-    }
-], separators=(',', ':'))
+def render_frame(device, t):
+    colors = {}
+    for lamp in device.lamps:
+        lx, ly = lamp["x"], lamp["y"]
 
-send(f'CREATE_EFFECT layered layers={layers}')
-resp = recv()
-print(resp, flush=True)
+        # Layer 0: Soft pink breathing base
+        breathe = 0.5 + 0.5 * math.sin(t * 1.2)
+        base = lerp(PINK_BASE, PINK_LIGHT, breathe)
 
-print(f'\n🌸 Cherry blossoms falling... Server PID: {proc.pid} — Ctrl+C to stop', flush=True)
+        # Layer 1: Deeper sakura wave sweeping left to right
+        wave = 0.5 + 0.5 * math.sin((lx * 4.0) - t * 1.5)
+        color = lerp(base, SAKURA_DEEP, wave * 0.5)
 
-# === LAMP LAYOUT (for alert coordination) ===
-rows = [15, 15, 15, 14, 13, 8, 7]
-row_offsets = [0, 0, 0.075, 0.12, 0.15, 0, 0.85]
-row_kw = [1, 1, 1, 1, 1, 1.5, 1]
+        # Layer 2: Sparse white sparkle petals
+        best_spark = 0.0
+        for i in range(NUM_SPARKLES):
+            dx = lx - sparkle_x[i]
+            dy = ly - sparkle_y[i]
+            dist = math.sqrt(dx * dx + dy * dy)
+            if dist < 0.20:
+                pulse = max(0.0, math.sin(t * sparkle_speed[i] + sparkle_phase[i]))
+                intensity = pulse * (1.0 - dist / 0.20)
+                best_spark = max(best_spark, intensity)
 
-lamps = []
-idx = 0
-for ri, count in enumerate(rows):
-    for ci in range(count):
-        x = (row_offsets[ri] + ci * row_kw[ri]) / 15.0
-        y = ri / 6.0
-        lamps.append({"idx": idx, "x": x, "y": y, "row": ri, "col": ci})
-        idx += 1
+        if best_spark > 0.1:
+            color = lerp(color, WHITE, best_spark * 0.8)
 
-PAUSE_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'rules', '.pause')
+        colors[str(lamp["idx"])] = hex_color(*color)
+    return colors
 
-frame = 0
-try:
-    while True:
-        # Alert flash coordination — check for notification override
-        if os.path.exists(PAUSE_FILE):
-            try:
-                with open(PAUSE_FILE, 'r') as f:
-                    alert_data = f.read().strip()
-                parts = alert_data.split('|')
-                flash_color = parts[0] if parts[0].startswith('#') else '#FF69B4'
-                flash_duration = float(parts[1]) if len(parts) > 1 else 3.0
-                all_flash = {str(lamp['idx']): flash_color for lamp in lamps}
-                flash_start = time.time()
-                while time.time() - flash_start < flash_duration:
-                    send(f"SET_LAMPS {json.dumps(all_flash)}")
-                    recv()
-                    frame += 1
-                    time.sleep(0.125)
-            except Exception as e:
-                print(f"Alert flash error: {e}")
-            finally:
-                try:
-                    os.remove(PAUSE_FILE)
-                except Exception:
-                    pass
-            # Resume the effect after flash
-            send(f'CREATE_EFFECT layered layers={layers}')
-            recv()
-            continue
-        if proc.poll() is not None:
-            break
-        time.sleep(0.25)
-except KeyboardInterrupt:
-    proc.terminate()
+
+runner.run(render_frame, fps=8)
