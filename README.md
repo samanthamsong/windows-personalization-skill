@@ -99,13 +99,13 @@ Per-lamp Python scripts that create pixel-level animations on your keyboard.
 | [Sunset](modules/dynamic-lighting/effects/sunset.py) | Golden hour sky with shifting warm tones |
 | [Shooting Stars](modules/dynamic-lighting/effects/shooting-stars.py) | Streaking stars across a night sky |
 | [Enchanted Forest](modules/dynamic-lighting/effects/enchanted-forest.py) | Layered forest with firefly sparkles |
-| [Monet Waterlilies](modules/dynamic-lighting/effects/monet-waterlilies.py) | Impressionist water and lilies |
+| [Waterlilies](modules/dynamic-lighting/effects/monet-waterlilies.py) | Impressionist pond with water and lilies |
 | [Paris Twinkle](modules/dynamic-lighting/effects/paris-twinkle.py) | Parisian city lights at night |
 | [Rainbow](modules/dynamic-lighting/effects/rainbow.py) | Per-lamp rainbow gradient |
-| [Star Wars Lightsaber](modules/dynamic-lighting/effects/star-wars-lightsaber.py) | Lightsaber ignition effect |
-| [Hello Kitty](modules/dynamic-lighting/effects/hello-kitty.py) | Hello Kitty themed colors |
+| [Lightsaber Duel](modules/dynamic-lighting/effects/star-wars-lightsaber.py) | Red vs blue lightsaber clash effect |
+| [Kawaii Pink](modules/dynamic-lighting/effects/hello-kitty.py) | Cute pink sparkle with bow-red accents |
 | [Fireworks](modules/dynamic-lighting/effects/fireworks.py) | Night sky with fireworks launching, exploding into colorful particle bursts |
-| [Water Droplets](modules/dynamic-lighting/effects/water-droplets.py) | Raindrops on a pond with expanding ripple rings — Monet-inspired |
+| [Water Droplets](modules/dynamic-lighting/effects/water-droplets.py) | Raindrops on a pond with expanding ripple rings |
 | [Cinematic](modules/dynamic-lighting/effects/cinematic.py) | Screen-reactive ambient lighting — keyboard mirrors your display |
 
 ## 🤖 Installing as a Copilot Skill
@@ -184,7 +184,7 @@ Just describe what you want in natural language — the agent generates the Pyth
 
 ### How it works
 
-The agent uses the `render_frame(t)` pattern — a function that computes a color for every key on your keyboard based on time and position. Each key has an `(x, y)` coordinate (0–1), and the function runs at ~8fps.
+The agent uses the `render_frame(device, t)` pattern — a function that computes a color for every lamp on each connected device based on time and position. Each lamp has an `(x, y)` coordinate (0–1), and the function runs at ~8fps across **all devices** (keyboards, lamps, mice, mousepads, light strips).
 
 For simple effects (solid color, wave, breathe), the agent calls CLI commands directly. For creative or artistic effects, it generates a Python script.
 
@@ -195,15 +195,15 @@ For simple effects (solid color, wave, breathe), the agent calls CLI commands di
    cp modules/dynamic-lighting/effects/_template.py modules/dynamic-lighting/effects/my-effect.py
    ```
 
-2. Edit `render_frame(t)` — this function receives the current time and returns a color for each key:
+2. Edit `render_frame(device, t)` — this function receives a device and the current time, returns a color for each lamp:
    ```python
-   def render_frame(t):
+   def render_frame(device, t):
        colors = {}
-       for lamp in lamps:
+       for lamp in device.lamps:
            # Use lamp['x'], lamp['y'] for position, t for animation
            wave = math.sin(lamp['x'] * math.pi * 2 - t * 2.0) * 0.5 + 0.5
            color = lerp(COLOR_A, COLOR_B, wave)
-           colors[str(lamp['idx'])] = '#{:02x}{:02x}{:02x}'.format(*color)
+           colors[str(lamp['idx'])] = hex_color(*color)
        return colors
    ```
 
@@ -222,7 +222,7 @@ Flash your keyboard whenever you get a Windows notification — Teams messages, 
 2. When a toast arrives, it writes a color + duration to `rules/.pause`
 3. The running effect reads the pause file, flashes the color, then resumes the animation
 
-All effects support notification flash alerts. Every per-lamp effect (koi-fish, flower-garden, shooting-stars, etc.) will flash and automatically resume.
+All effects support notification flash alerts across all connected devices. Every per-lamp effect (koi-fish, flower-garden, shooting-stars, etc.) will flash and automatically resume.
 
 ### Quick start
 
@@ -343,7 +343,7 @@ python modules/themes/apply-theme.py --stop-lighting
 
 Or tell your AI agent in natural language:
 
-> "Make everything shrek themed"
+> "Make everything forest themed"
 >
 > "Give me a cozy autumn aesthetic"
 >
