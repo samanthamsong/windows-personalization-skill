@@ -21,6 +21,7 @@ public sealed class LampArrayService : IDisposable
 {
     private readonly object _sync = new();
     private readonly Dictionary<string, DeviceInformation> _devicesById = new();
+    private readonly Dictionary<string, LampArray> _lampArrayCache = new();
     private readonly DeviceWatcher _watcher;
 
     public LampArrayService()
@@ -85,11 +86,25 @@ public sealed class LampArrayService : IDisposable
             {
                 throw new KeyNotFoundException($"LampArray device '{deviceId}' is not currently connected.");
             }
+
+            // Return cached instance to avoid re-acquiring device control
+            if (_lampArrayCache.TryGetValue(deviceId, out var cached))
+            {
+                return cached;
+            }
         }
 
         var lampArray = await LampArray.FromIdAsync(deviceId);
 
-        return lampArray ?? throw new InvalidOperationException($"Unable to open LampArray device '{deviceId}'.");
+        if (lampArray is null)
+            throw new InvalidOperationException($"Unable to open LampArray device '{deviceId}'.");
+
+        lock (_sync)
+        {
+            _lampArrayCache[deviceId] = lampArray;
+        }
+
+        return lampArray;
     }
 
     public List<LampPosition> GetAllLampPositions(LampArray lampArray)
@@ -310,6 +325,7 @@ public sealed class LampArrayService : IDisposable
         lock (_sync)
         {
             _devicesById.Remove(args.Id);
+            _lampArrayCache.Remove(args.Id);
         }
     }
 }

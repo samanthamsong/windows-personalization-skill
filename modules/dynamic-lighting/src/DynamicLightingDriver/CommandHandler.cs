@@ -379,6 +379,7 @@ public sealed class CommandHandler
 
             var totalLamps = 0;
             var deviceCount = 0;
+            var defaultParsed = Color.FromArgb(255, 0, 0, 0);
 
             foreach (var deviceEntry in doc.RootElement.EnumerateObject())
             {
@@ -390,34 +391,32 @@ public sealed class CommandHandler
                 }
                 catch
                 {
-                    continue; // skip disconnected devices
+                    continue;
                 }
 
-                var lampColorMap = new Dictionary<int, Color>();
-                var defaultParsed = Color.FromArgb(255, 0, 0, 0);
+                if (deviceEntry.Value.ValueKind != JsonValueKind.Object)
+                    continue;
 
-                if (deviceEntry.Value.ValueKind == JsonValueKind.Object)
+                var indices = new List<int>();
+                var colors = new List<Color>();
+
+                foreach (var property in deviceEntry.Value.EnumerateObject())
                 {
-                    foreach (var property in deviceEntry.Value.EnumerateObject())
+                    if (int.TryParse(property.Name, out var index) && index >= 0 && index < device.LampCount)
                     {
-                        if (int.TryParse(property.Name, out var index) && index >= 0 && index < device.LampCount)
-                        {
-                            var colorStr = property.Value.GetString() ?? "";
-                            lampColorMap[index] = ParseSingleColor(colorStr, defaultParsed);
-                        }
+                        var colorStr = property.Value.GetString() ?? "";
+                        indices.Add(index);
+                        colors.Add(ParseSingleColor(colorStr, defaultParsed));
                     }
                 }
 
-                if (lampColorMap.Count == 0)
+                if (indices.Count == 0)
                     continue;
 
-                if (!_effectEngine.TryUpdatePerLampColors(device, lampColorMap, defaultParsed))
-                {
-                    await EnsureDeviceAvailable(device);
-                    _effectEngine.ApplyPerLampColors(device, lampColorMap, defaultParsed);
-                }
+                // Direct color setting — no effect/playlist needed
+                device.SetColorsForIndices(colors.ToArray(), indices.ToArray());
 
-                totalLamps += lampColorMap.Count;
+                totalLamps += indices.Count;
                 deviceCount++;
             }
 

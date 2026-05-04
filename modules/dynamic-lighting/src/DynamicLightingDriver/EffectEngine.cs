@@ -72,9 +72,22 @@ public sealed class EffectEngine : IDisposable
     // True when the device is available via ambient mode (no foreground hack needed)
     private volatile bool _ambientMode;
 
-    // Per-lamp color streaming: reuse the running playlist and update colors in-place
-    private Color[]? _perLampColors;
-    private string? _perLampDeviceId;
+    // Per-lamp color streaming: per-device state for multi-device support
+    private sealed class PerDeviceLampState
+    {
+        public Color[] Colors;
+        public LampArray Device;
+
+        public PerDeviceLampState(Color[] colors, LampArray device)
+        {
+            Colors = colors;
+            Device = device;
+        }
+    }
+
+    private readonly Dictionary<string, PerDeviceLampState> _perDeviceStates = new();
+    private LampArrayEffectPlaylist? _perDevicePlaylist;
+    private readonly List<(LampArrayCustomEffect Effect, TypedEventHandler<LampArrayCustomEffect, LampArrayUpdateRequestedEventArgs> Handler)> _perDeviceBindings = new();
 
     /// <summary>
     /// Set the companion window so the engine can bring it to foreground when availability is lost.
@@ -348,101 +361,89 @@ public sealed class EffectEngine : IDisposable
     {
         lock (_sync)
         {
-            if (_perLampColors is null
-                || _perLampDeviceId is null
-                || _activePlaylist is null
-                || _perLampDeviceId != device.DeviceId
-                || _perLampColors.Length != device.LampCount)
+            if (!_perDeviceStates.TryGetValue(device.DeviceId, out var state)
+                || state.Colors.Length != device.LampCount)
             {
                 return false;
             }
 
-            // Update the shared color array in-place; the running effect callback
-            // will pick up the new values on the next UpdateRequested tick.
-            for (var i = 0; i < _perLampColors.Length; i++)
+            for (var i = 0; i < state.Colors.Length; i++)
             {
-                _perLampColors[i] = lampColors.TryGetValue(i, out var c) ? c : defaultColor;
+                state.Colors[i] = lampColors.TryGetValue(i, out var c) ? c : defaultColor;
             }
 
             return true;
         }
     }
 
+    /// <summary>
+    /// Sets per-lamp colors on a single device. Creates a new playlist.
+    /// Used by SET_LAMPS (single device path).
+    /// </summary>
     public void ApplyPerLampColors(LampArray device, IReadOnlyDictionary<int, Color> lampColors, Color defaultColor)
     {
-        ArgumentNullException.ThrowIfNull(device);
-        ArgumentNullException.ThrowIfNull(lampColors);
+        ApplyPerLampColorsMulti(new[] { (device, lampColors) }, defaultColor);
+    }
 
-        var lampCount = device.LampCount;
-        if (lampCount == 0)
-        {
-            throw new InvalidOperationException("No lamps found on this device.");
-        }
+    /// <summary>
+    /// Sets per-lamp colors on one or more devices using a single shared playlist.
+    /// All devices get their effects added to one playlist so they run simultaneously.
+    /// </summary>
+    public void ApplyPerLampColorsMulti(
+        IReadOnlyList<(LampArray Device, IReadOnlyDictionary<int, Color> LampColors)> deviceColorMaps,
+        Color defaultColor)
+    {
+        if (deviceColorMaps.Count == 0) return;
 
-        var lampIndices = Enumerable.Range(0, lampCount).ToArray();
-
-        // Build the shared color array that the effect callback reads from.
-        // Subsequent calls via TryUpdatePerLampColors can update this in-place.
-        var colors = new Color[lampCount];
-        for (var i = 0; i < lampCount; i++)
-        {
-            colors[i] = lampColors.TryGetValue(i, out var c) ? c : defaultColor;
-        }
-
-        var effect = new LampArrayCustomEffect(device, lampIndices)
-        {
-            Duration = InfiniteDuration,
-            UpdateInterval = DefaultUpdateInterval,
-            ZIndex = 100,
-        };
-
-        TypedEventHandler<LampArrayCustomEffect, LampArrayUpdateRequestedEventArgs> handler = (_, args) =>
-        {
-            // Read from the shared color array; may be updated concurrently by
-            // TryUpdatePerLampColors, which is safe (Color is a small value type).
-            for (var i = 0; i < colors.Length; i++)
-            {
-                args.SetColorForIndex(i, colors[i]);
-            }
-        };
-
-        effect.UpdateRequested += handler;
+        // Stop any existing per-device streaming and single-effect state
+        StopPerDeviceStreaming();
+        StopSingleEffectState();
 
         var playlist = new LampArrayEffectPlaylist();
-        playlist.Append(effect);
-
-        StopAllEffects();
 
         lock (_sync)
         {
-            _activePlaylist = playlist;
-            _activeDevice = device;
-            _activeBindings.Add((effect, handler));
-            _perLampColors = colors;
-            _perLampDeviceId = device.DeviceId;
+            foreach (var (device, lampColors) in deviceColorMaps)
+            {
+                var lampCount = device.LampCount;
+                if (lampCount == 0) continue;
+
+                var lampIndices = Enumerable.Range(0, lampCount).ToArray();
+                var colors = new Color[lampCount];
+                for (var i = 0; i < lampCount; i++)
+                {
+                    colors[i] = lampColors.TryGetValue(i, out var c) ? c : defaultColor;
+                }
+
+                var effect = new LampArrayCustomEffect(device, lampIndices)
+                {
+                    Duration = InfiniteDuration,
+                    UpdateInterval = DefaultUpdateInterval,
+                    ZIndex = 100,
+                };
+
+                TypedEventHandler<LampArrayCustomEffect, LampArrayUpdateRequestedEventArgs> handler = (_, args) =>
+                {
+                    for (var i = 0; i < colors.Length; i++)
+                    {
+                        args.SetColorForIndex(i, colors[i]);
+                    }
+                };
+
+                effect.UpdateRequested += handler;
+                playlist.Append(effect);
+                _perDeviceBindings.Add((effect, handler));
+                _perDeviceStates[device.DeviceId] = new PerDeviceLampState(colors, device);
+            }
+
+            _perDevicePlaylist = playlist;
         }
 
-        _ambientMode = device.IsAvailable;
+        _ambientMode = deviceColorMaps[0].Device.IsAvailable;
         if (!_ambientMode)
             _window?.SetHoldForeground(true);
-        playlist.Start();
 
-        // Track for re-apply when device becomes available again (ambient mode).
-        // The re-apply callback creates a fresh playlist with the latest colors.
-        TrackDeviceAvailability(device, d =>
-        {
-            Color[] snapshot;
-            lock (_sync)
-            {
-                snapshot = _perLampColors != null ? (Color[])_perLampColors.Clone() : colors;
-            }
-            var map = new Dictionary<int, Color>();
-            for (var i = 0; i < snapshot.Length; i++)
-            {
-                map[i] = snapshot[i];
-            }
-            ApplyPerLampColors(d, map, defaultColor);
-        });
+        playlist.Start();
     }
 
     public void StopEffect()
@@ -450,11 +451,12 @@ public sealed class EffectEngine : IDisposable
         StopAllEffects();
     }
 
-    public void StopAllEffects()
+    /// <summary>
+    /// Stops the single-effect state (CREATE_EFFECT / ApplyEffect / ApplyLayeredEffect)
+    /// without touching per-device per-lamp streaming state.
+    /// </summary>
+    private void StopSingleEffectState()
     {
-        _window?.SetHoldForeground(false);
-        _window?.StopRetryLoop();
-
         LampArrayEffectPlaylist? playlist;
         List<(LampArrayCustomEffect Effect, TypedEventHandler<LampArrayCustomEffect, LampArrayUpdateRequestedEventArgs> Handler)> bindings;
 
@@ -466,11 +468,6 @@ public sealed class EffectEngine : IDisposable
             _activePlaylist = null;
             _activeBindings.Clear();
 
-            // Clear per-lamp streaming state
-            _perLampColors = null;
-            _perLampDeviceId = null;
-
-            // Clear re-apply tracking
             _pendingReapply = null;
             if (_activeDevice != null && _availabilityHandler != null)
             {
@@ -486,6 +483,94 @@ public sealed class EffectEngine : IDisposable
         }
 
         playlist?.Stop();
+    }
+
+    /// <summary>
+    /// Stops all per-device per-lamp streaming (shared playlist + all device states).
+    /// </summary>
+    private void StopPerDeviceStreaming()
+    {
+        LampArrayEffectPlaylist? playlist;
+        List<(LampArrayCustomEffect Effect, TypedEventHandler<LampArrayCustomEffect, LampArrayUpdateRequestedEventArgs> Handler)> bindings;
+
+        lock (_sync)
+        {
+            playlist = _perDevicePlaylist;
+            bindings = _perDeviceBindings.ToList();
+
+            _perDevicePlaylist = null;
+            _perDeviceBindings.Clear();
+            _perDeviceStates.Clear();
+        }
+
+        foreach (var binding in bindings)
+        {
+            binding.Effect.UpdateRequested -= binding.Handler;
+        }
+
+        playlist?.Stop();
+    }
+
+    public void StopAllEffects()
+    {
+        _window?.StopRetryLoop();
+
+        LampArrayEffectPlaylist? singlePlaylist;
+        List<(LampArrayCustomEffect Effect, TypedEventHandler<LampArrayCustomEffect, LampArrayUpdateRequestedEventArgs> Handler)> singleBindings;
+        LampArrayEffectPlaylist? perDevicePlaylist;
+        List<(LampArrayCustomEffect Effect, TypedEventHandler<LampArrayCustomEffect, LampArrayUpdateRequestedEventArgs> Handler)> perDeviceBindings;
+
+        lock (_sync)
+        {
+            // Single-effect state
+            singlePlaylist = _activePlaylist;
+            singleBindings = _activeBindings.ToList();
+            _activePlaylist = null;
+            _activeBindings.Clear();
+
+            _pendingReapply = null;
+            if (_activeDevice != null && _availabilityHandler != null)
+            {
+                _activeDevice.AvailabilityChanged -= _availabilityHandler;
+                _availabilityHandler = null;
+            }
+            _activeDevice = null;
+
+            // Per-device streaming state
+            perDevicePlaylist = _perDevicePlaylist;
+            perDeviceBindings = _perDeviceBindings.ToList();
+            _perDevicePlaylist = null;
+            _perDeviceBindings.Clear();
+            _perDeviceStates.Clear();
+        }
+
+        foreach (var binding in singleBindings)
+        {
+            binding.Effect.UpdateRequested -= binding.Handler;
+        }
+        singlePlaylist?.Stop();
+
+        foreach (var binding in perDeviceBindings)
+        {
+            binding.Effect.UpdateRequested -= binding.Handler;
+        }
+        perDevicePlaylist?.Stop();
+
+        _window?.SetHoldForeground(false);
+    }
+
+    /// <summary>
+    /// Only release foreground hold when no effects are active at all.
+    /// </summary>
+    private void UpdateWindowHoldState()
+    {
+        lock (_sync)
+        {
+            if (_activePlaylist == null && _perDevicePlaylist == null)
+            {
+                _window?.SetHoldForeground(false);
+            }
+        }
     }
 
     public void Dispose()
