@@ -265,11 +265,20 @@ def run_effect(palette_hex: list, style: str = "wave"):
                      daemon=True).start()
 
     def send(cmd):
-        proc.stdin.write((cmd + '\n').encode())
-        proc.stdin.flush()
+        try:
+            proc.stdin.write((cmd + '\n').encode())
+            proc.stdin.flush()
+        except (BrokenPipeError, OSError):
+            pass
 
     def recv():
-        return proc.stdout.readline().decode().strip()
+        try:
+            line = proc.stdout.readline()
+            if not line:
+                return None
+            return line.decode().strip()
+        except (OSError, ValueError):
+            return None
 
     ready = recv()
     if ready != 'READY':
@@ -296,6 +305,10 @@ def run_effect(palette_hex: list, style: str = "wave"):
     start = time.time()
     try:
         while True:
+            if proc.poll() is not None:
+                print("  Driver process exited.")
+                break
+
             # Alert flash coordination
             if os.path.exists(PAUSE_FILE):
                 try:

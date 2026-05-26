@@ -63,10 +63,36 @@ def hex_color(r, g, b):
 class EffectRunner:
     """Manages driver lifecycle, multi-device discovery, and animation loop."""
 
+    @staticmethod
+    def _kill_existing_drivers():
+        """Kill any existing DynamicLightingDriver.exe processes."""
+        try:
+            result = subprocess.run(
+                ['tasklist', '/FI', 'IMAGENAME eq DynamicLightingDriver.exe', '/FO', 'CSV', '/NH'],
+                capture_output=True, text=True, timeout=5,
+            )
+            for line in result.stdout.strip().split('\n'):
+                line = line.strip()
+                if not line or 'DynamicLightingDriver' not in line:
+                    continue
+                parts = line.split(',')
+                if len(parts) >= 2:
+                    pid = int(parts[1].strip('"'))
+                    try:
+                        os.kill(pid, signal.SIGTERM)
+                    except OSError:
+                        pass
+            # Brief wait for processes to exit
+            time.sleep(0.5)
+        except Exception:
+            pass
+
     def __init__(self, name="Effect"):
         if not os.path.isfile(EXE):
             print(f"Error: Driver not found at {EXE}", file=sys.stderr)
             sys.exit(1)
+
+        self._kill_existing_drivers()
 
         self.proc = subprocess.Popen(
             [EXE],
@@ -115,20 +141,31 @@ class EffectRunner:
             self.proc.terminate()
             sys.exit(1)
 
+        # Hide driver window to system tray if requested
+        if os.environ.get('DL_MINIMIZED', '').strip() == '1':
+            self.send("HIDE")
+            self.recv()
+
         self.name = name
         self._last_effect_cmd = None
 
     def send(self, cmd):
         """Send a command to the driver."""
-        self.proc.stdin.write((cmd + '\n').encode())
-        self.proc.stdin.flush()
+        try:
+            self.proc.stdin.write((cmd + '\n').encode())
+            self.proc.stdin.flush()
+        except (BrokenPipeError, OSError):
+            pass
 
     def recv(self):
         """Read a response from the driver."""
-        line = self.proc.stdout.readline()
-        if not line:
+        try:
+            line = self.proc.stdout.readline()
+            if not line:
+                return None
+            return line.decode().strip()
+        except (OSError, ValueError):
             return None
-        return line.decode().strip()
 
     def run(self, render_fn, fps=8):
         """Run the animation loop across all devices.
@@ -148,6 +185,10 @@ class EffectRunner:
         start = time.time()
         try:
             while True:
+                if self.proc.poll() is not None:
+                    print("Driver process exited.", flush=True)
+                    break
+
                 # Alert flash coordination
                 if os.path.exists(PAUSE_FILE):
                     self._handle_alert_flash(frame)

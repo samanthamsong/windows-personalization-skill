@@ -99,15 +99,25 @@ class LightingClient:
         self._wait_ready()
 
     def _send(self, cmd):
-        self.proc.stdin.write((cmd + '\n').encode())
-        self.proc.stdin.flush()
+        try:
+            self.proc.stdin.write((cmd + '\n').encode())
+            self.proc.stdin.flush()
+        except (BrokenPipeError, OSError):
+            pass
 
     def _recv(self):
-        return self.proc.stdout.readline().decode().strip()
+        try:
+            line = self.proc.stdout.readline()
+            if not line:
+                return None
+            return line.decode().strip()
+        except (OSError, ValueError):
+            return None
 
     def _wait_ready(self):
         ready = self._recv()
-        assert ready == 'READY', f'Driver not ready: {ready}'
+        if ready != 'READY':
+            raise RuntimeError(f'Driver not ready: {ready}')
 
     def set_solid_color(self, color):
         self._send(f'SET_ALL {color}')

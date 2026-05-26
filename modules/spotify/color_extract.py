@@ -49,11 +49,9 @@ def extract_colors(image, num_colors=5):
 
     # Pad with fallback if we filtered too aggressively
     if len(result) < 2:
-        result = [(r, g, b) for (r, g, b), _ in
-                  sorted(Counter(quantized.getdata()).most_common(),
-                         key=lambda x: -x[1])[:num_colors]]
+        top_indices = [idx for idx, _ in Counter(quantized.getdata()).most_common(num_colors)]
         result = [(palette[idx * 3], palette[idx * 3 + 1], palette[idx * 3 + 2])
-                  for idx in [c[0] for c in Counter(quantized.getdata()).most_common()[:num_colors]]]
+                  for idx in top_indices]
 
     return result[:num_colors]
 

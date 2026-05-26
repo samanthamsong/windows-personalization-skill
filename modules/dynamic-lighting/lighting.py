@@ -58,16 +58,22 @@ def launch_driver():
 
 def send(proc, cmd):
     """Send a line command to the driver."""
-    proc.stdin.write((cmd + '\n').encode())
-    proc.stdin.flush()
+    try:
+        proc.stdin.write((cmd + '\n').encode())
+        proc.stdin.flush()
+    except (BrokenPipeError, OSError):
+        pass
 
 
 def recv(proc):
     """Read a line response from the driver."""
-    line = proc.stdout.readline()
-    if not line:
+    try:
+        line = proc.stdout.readline()
+        if not line:
+            return None
+        return line.decode().strip()
+    except (OSError, ValueError):
         return None
-    return line.decode().strip()
 
 
 def wait_ready(proc):
@@ -165,9 +171,14 @@ def cmd_run_effect(args):
         print(f"Effect not found: {script}", file=sys.stderr)
         print("Run 'python lighting.py list-effects' to see available effects.", file=sys.stderr)
         sys.exit(1)
+    # Stop any existing effect processes before starting a new one
+    _stop_existing_effects()
     # Use CREATE_NEW_PROCESS_GROUP so the effect survives if this CLI exits
     flags = subprocess.CREATE_NEW_PROCESS_GROUP
-    p = subprocess.Popen([sys.executable, script], creationflags=flags)
+    env = os.environ.copy()
+    if getattr(args, 'minimized', False):
+        env['DL_MINIMIZED'] = '1'
+    p = subprocess.Popen([sys.executable, script], creationflags=flags, env=env)
     print(f"Started effect '{args.name}' (PID {p.pid})")
     print("Press Ctrl+C to detach (effect keeps running).")
     try:
@@ -187,43 +198,42 @@ def cmd_set_theme(args):
         proc.terminate()
 
 
-def cmd_stop(args):
-    """Find and kill Python processes running effect scripts."""
-    import ctypes
-
+def _stop_existing_effects():
+    """Find and kill Python processes running effect scripts. Returns list of killed PIDs."""
     killed = []
     try:
-        # Use WMIC to find python processes with their command lines
         result = subprocess.run(
-            ['wmic', 'process', 'where', "name like '%python%'", 'get',
-             'ProcessId,CommandLine', '/format:list'],
+            ['powershell', '-NoProfile', '-Command',
+             "Get-CimInstance Win32_Process -Filter \"Name like '%python%'\" "
+             "| Select-Object ProcessId, CommandLine "
+             "| ConvertTo-Json -Compress"],
             capture_output=True, text=True, timeout=10,
         )
-        lines = result.stdout.strip().split('\n')
         current_pid = os.getpid()
-        pid = None
-        cmdline = None
-        for line in lines:
-            line = line.strip()
-            if line.startswith('CommandLine='):
-                cmdline = line[len('CommandLine='):]
-            elif line.startswith('ProcessId='):
-                pid = int(line[len('ProcessId='):])
-            if pid is not None and cmdline is not None:
-                effects_norm = os.path.normpath(EFFECTS_DIR).lower()
-                if (pid != current_pid
-                        and effects_norm in os.path.normpath(cmdline).lower()
-                        and cmdline.endswith('.py')):
-                    try:
-                        os.kill(pid, signal.SIGTERM)
-                        killed.append(pid)
-                    except OSError:
-                        pass
-                pid = None
-                cmdline = None
+        effects_norm = os.path.normpath(EFFECTS_DIR).lower()
+        import json as _json
+        data = _json.loads(result.stdout) if result.stdout.strip() else []
+        if isinstance(data, dict):
+            data = [data]
+        for proc in data:
+            pid = proc.get('ProcessId')
+            cmdline = proc.get('CommandLine') or ''
+            if (pid and pid != current_pid
+                    and effects_norm in os.path.normpath(cmdline).lower()
+                    and cmdline.rstrip().endswith('.py')):
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                    killed.append(pid)
+                except OSError:
+                    pass
     except Exception as e:
         print(f"Error scanning processes: {e}", file=sys.stderr)
+    return killed
 
+
+def cmd_stop(args):
+    """Find and kill Python processes running effect scripts."""
+    killed = _stop_existing_effects()
     if killed:
         print(f"Stopped {len(killed)} effect process(es): {killed}")
     else:
@@ -262,6 +272,7 @@ def main():
     # run-effect
     p_run = sub.add_parser('run-effect', help='Run a named effect (e.g. koi-fish)')
     p_run.add_argument('name', help='Effect name (auto-adds .py)')
+    p_run.add_argument('--minimized', action='store_true', help='Start with driver hidden to system tray')
     p_run.set_defaults(func=cmd_run_effect)
 
     # stop

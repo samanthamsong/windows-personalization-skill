@@ -11,7 +11,10 @@ import sys
 
 
 def _hex_to_rgb(hex_color: str) -> tuple:
-    """Convert '#RRGGBB' to (R, G, B)."""
+    """Convert '#RRGGBB' to (R, G, B). Returns None on invalid input."""
+    import re
+    if not hex_color or not re.match(r'^#?[0-9A-Fa-f]{6}$', hex_color):
+        return None
     h = hex_color.lstrip('#')
     return (int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16))
 
@@ -57,7 +60,10 @@ def apply_desktop(accent_hex: str, mode: str = "dark",
     Returns:
         dict with 'success' bool and 'message' string
     """
-    r, g, b = _hex_to_rgb(accent_hex)
+    rgb = _hex_to_rgb(accent_hex)
+    if rgb is None:
+        return {"success": False, "message": f"Invalid accent color: {accent_hex}"}
+    r, g, b = rgb
     palette = _generate_palette(r, g, b)
     palette_hex = ','.join(f'0x{byte:02X}' for byte in palette)
 

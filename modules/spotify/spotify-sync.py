@@ -82,11 +82,20 @@ class SpotifySync:
             sys.exit(1)
 
     def send(self, cmd):
-        self.proc.stdin.write((cmd + '\n').encode())
-        self.proc.stdin.flush()
+        try:
+            self.proc.stdin.write((cmd + '\n').encode())
+            self.proc.stdin.flush()
+        except (BrokenPipeError, OSError):
+            pass
 
     def recv(self):
-        return self.proc.stdout.readline().decode().strip()
+        try:
+            line = self.proc.stdout.readline()
+            if not line:
+                return None
+            return line.decode().strip()
+        except (OSError, ValueError):
+            return None
 
     def get_current_track(self):
         """Poll Spotify for currently playing track."""

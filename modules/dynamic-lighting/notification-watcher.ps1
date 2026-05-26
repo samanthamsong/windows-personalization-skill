@@ -9,6 +9,8 @@ param(
 )
 
 $pauseFile = Join-Path $PSScriptRoot "rules\.pause"
+$pauseDir = Split-Path $pauseFile -Parent
+if (-not (Test-Path $pauseDir)) { New-Item -Path $pauseDir -ItemType Directory -Force | Out-Null }
 $logName = "Microsoft-Windows-PushNotification-Platform/Operational"
 
 # Get the latest event timestamp as our baseline

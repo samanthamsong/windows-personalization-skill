@@ -91,7 +91,7 @@ class DeviceManager:
         self.send('GET_ALL_LAYOUTS')
         resp = self.recv()
 
-        if not resp.startswith('OK '):
+        if not resp or not resp.startswith('OK '):
             print(f"  ⚠ Device discovery failed: {resp}")
             self.devices = []
             return
