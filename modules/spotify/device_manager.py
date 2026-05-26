@@ -92,7 +92,7 @@ class DeviceManager:
         resp = self.recv()
 
         if not resp or not resp.startswith('OK '):
-            print(f"  ⚠ Device discovery failed: {resp}")
+            print(f"  Device discovery failed: {resp}")
             self.devices = []
             return
 
@@ -100,14 +100,14 @@ class DeviceManager:
             data = json.loads(resp[3:])
             self.devices = [Device(d) for d in data.get('devices', [])]
         except (json.JSONDecodeError, KeyError) as e:
-            print(f"  ⚠ Failed to parse device layouts: {e}")
+            print(f"  Failed to parse device layouts: {e}")
             self.devices = []
 
         if self.devices:
             for d in self.devices:
-                print(f"  📱 {d.kind}: {len(d.lamps)} lamps — {d.name}")
+                print(f"  {d.kind}: {len(d.lamps)} lamps - {d.name}")
         else:
-            print("  ⚠ No Dynamic Lighting devices found")
+            print("  No Dynamic Lighting devices found")
 
     @property
     def keyboard(self):

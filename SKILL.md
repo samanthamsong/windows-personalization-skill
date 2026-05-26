@@ -14,7 +14,8 @@ Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, 
 
 **Prerequisites:**
 - Windows 11 22H2+ with a Dynamic Lighting compatible device
-- .NET 8+ SDK, Python 3.10+, WinAppCLI
+- Developer Mode enabled (Settings → System → For developers)
+- Git, .NET 9+ SDK, Python 3.10+, WinAppCLI
 - Driver must be installed to `%LocalAppData%\DynamicLightingDriver\`
 
 **First-time setup:** If the driver is not installed, run setup from the skill directory:

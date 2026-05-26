@@ -22,13 +22,25 @@ This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-sk
 | Requirement | Version | Install |
 |-------------|---------|---------|
 | Windows 11 | 22H2+ | — |
-| .NET SDK | 8.0+ | [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/9.0) |
-| Python | 3.10+ | [python.org](https://www.python.org/downloads/) or `winget install Python.Python.3.12` |
+| Git | Any | `winget install Git.Git` |
+| .NET SDK | 9.0+ | `winget install Microsoft.DotNet.SDK.9` or [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/9.0) |
+| Python | 3.10+ | `winget install Python.Python.3.12` or [python.org](https://www.python.org/downloads/) |
 | WinAppCLI | 0.2+ | `winget install Microsoft.WinAppCli` |
+| Developer Mode | — | **Required.** Settings → System → For developers → Developer Mode (ON) |
 | Dynamic Lighting device | — | Any [compatible](https://support.microsoft.com/en-us/windows/control-your-dynamic-lighting-devices-in-windows-8e9f9b1f-6844-4c5e-9873-d836e87fcb7f) RGB keyboard, mouse, light strip, etc. |
-| Spotify account | — | Free or Premium (for Spotify integration) |
+| Spotify account | — | Free or Premium (only needed for Spotify integration) |
 
-> **Windows Settings:** Go to **Settings → Personalization → Dynamic Lighting** and ensure **"Use Dynamic Lighting on my devices"** is turned on.
+**On a fresh Windows 11 machine**, install all prerequisites at once:
+
+```powershell
+winget install Git.Git Microsoft.DotNet.SDK.9 Python.Python.3.12 Microsoft.WinAppCli
+```
+
+Then restart your terminal so the new tools are on your PATH.
+
+> **Windows Settings (do both before running setup):**
+> 1. **Developer Mode:** Go to **Settings → System → For developers** and turn on **Developer Mode**. This is required for sideloading the driver's AppX package identity.
+> 2. **Dynamic Lighting:** Go to **Settings → Personalization → Dynamic Lighting** and ensure **"Use Dynamic Lighting on my devices"** is turned on.
 
 ### 1. Clone the repo
 
@@ -41,24 +53,27 @@ cd "$HOME\.copilot\skills\windows-personalization"
 
 > **Already cloned somewhere else?** Run `.\setup.ps1` — it creates a junction from `~/.copilot/skills/windows-personalization/` to the repo automatically.
 
-### 2. Run setup
+### 2. Run setup (as admin)
+
+The first run **must be elevated** so the dev certificate can be added to the machine trust store:
+
+```powershell
+Start-Process powershell -Verb RunAs -ArgumentList "-File $PWD\setup.ps1"
+```
+
+After the first run, subsequent runs can use a normal terminal:
 
 ```powershell
 .\setup.ps1
 ```
 
 This will:
-1. Check prerequisites (.NET 9, Python 3, WinAppCLI)
+1. Check prerequisites (.NET 9, Python 3, WinAppCLI, Developer Mode)
 2. Install Python dependencies
 3. Build the .NET driver
 4. Install the driver to `%LocalAppData%\DynamicLightingDriver\`
 5. Register for AppX package identity (needed for LampArray API access)
 6. Verify everything works
-
-> ⚠️ **First run:** You may need to run as admin once so the dev certificate can be added to the machine trust store:
-> ```powershell
-> Start-Process powershell -Verb RunAs -ArgumentList "-File $PWD\setup.ps1"
-> ```
 
 > ⚠️ **Important:** After setup, go to **Settings → Personalization → Dynamic Lighting → Background light control** and move **Dynamic Lighting Driver** so it is **below** "Dynamic Lighting Background Controller" in the priority list.
 

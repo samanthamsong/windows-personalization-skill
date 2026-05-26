@@ -57,8 +57,7 @@ $devMode = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersi
 if ($devMode -and $devMode.AllowDevelopmentWithoutDevLicense -eq 1) {
     Write-Host "  Developer Mode: enabled" -ForegroundColor Green
 } else {
-    Write-Host "  Developer Mode: not enabled (recommended)" -ForegroundColor Yellow
-    Write-Host "    Enable in Settings -> System -> For developers -> Developer Mode" -ForegroundColor Yellow
+    $missing += "Developer Mode (Settings -> System -> For developers -> Developer Mode)"
 }
 
 if ($missing.Count -gt 0) {
