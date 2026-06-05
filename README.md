@@ -83,27 +83,21 @@ This will:
 
 ### 3. Try it!
 
-```powershell
-# Set your keyboard to a color
-python modules/dynamic-lighting/lighting.py set-color "#FF6600"
+Open Copilot (CLI, VS Code agent mode, etc.) and try these prompts:
 
-# Run a per-lamp effect
-python modules/dynamic-lighting/lighting.py run-effect koi-fish
-
-# List available effects
-python modules/dynamic-lighting/lighting.py list-effects
-
-# Stop running effects
-python modules/dynamic-lighting/lighting.py stop
-```
-
-Or tell your AI agent (Copilot, etc.) what you want in natural language:
-
+> "Set my keyboard to orange"
+>
+> "Run the koi fish effect"
+>
+> "What effects are available?"
+>
 > "Make my keyboard breathe with purple"
 >
 > "Ocean waves on my keyboard"
 >
 > "Set everything to red"
+>
+> "Stop the lights"
 
 ## 🐟 Effect Gallery
 
@@ -235,16 +229,15 @@ All effects support notification flash alerts across all connected devices. Ever
 
 ### Quick start
 
-```powershell
-# Terminal 1: Run any effect
-python modules/dynamic-lighting/effects/flower-garden.py
+Tell your AI agent:
 
-# Terminal 2: Start the notification watcher (hot pink flash for 3s)
-powershell -ExecutionPolicy Bypass -File modules/dynamic-lighting/notification-watcher.ps1
+> "Flash my keyboard hot pink when I get a notification"
+>
+> "Flash green for 2 seconds on notifications"
+>
+> "Start watching for notifications"
 
-# Custom color/duration
-powershell -ExecutionPolicy Bypass -File modules/dynamic-lighting/notification-watcher.ps1 -Color "#00FF00" -Duration 2
-```
+The agent will set up the notification watcher and configure the flash color/duration for you.
 
 ## 🖥️ Driver Window
 
@@ -278,28 +271,15 @@ That's it — the Client ID is built in. Each developer logs in with their own S
 
 ### Usage
 
-```powershell
-# Color wave synced to album art
-python modules/spotify/spotify-sync.py start
-
-# Beat-reactive mode — keyboard pulses on every beat
-python modules/spotify/spotify-sync.py start --beat-sync
-
-# Overlay mode — tints the current running effect with album colors
-python modules/spotify/spotify-sync.py start --overlay
-
-# Check what's playing
-python modules/spotify/spotify-sync.py status
-
-# Stop sync
-python modules/spotify/spotify-sync.py stop
-```
-
-Or tell your AI agent:
+Tell your AI agent:
 
 > "Sync my keyboard to Spotify"
 >
 > "Pulse my keyboard to the beat"
+>
+> "Tint my current effect with album colors"
+>
+> "What's playing on Spotify?"
 >
 > "Stop the music sync"
 
@@ -320,43 +300,27 @@ Transform your entire desktop with a single prompt — wallpaper, accent color, 
 
 The skill includes a library of MSIX-packaged Windows themes with professional wallpapers, accent colors, sounds, and cursors. When you apply a theme, the tool checks the library first for a matching packaged theme — giving you richer results than custom generation.
 
-```powershell
-# List available packaged themes
-python modules/themes/apply-theme.py --list-library
+Tell your AI agent:
 
-# Apply a theme (auto-checks library first)
-python modules/themes/apply-theme.py --spec '{"name":"spring blossoms"}'
-
-# Force custom generation (skip library)
-python modules/themes/apply-theme.py --spec '{"name":"ocean","accent_color":"#0077B6","mode":"dark"}' --skip-library
-
-# Manage the library directly
-python modules/themes/msix_handler.py list
-python modules/themes/msix_handler.py rebuild-catalog
-```
+> "What themes are available?"
+>
+> "Apply the spring blossoms theme"
+>
+> "Give me an ocean theme with dark mode"
 
 To add new themes, drop `.msix` files into `modules/themes/library/packages/` and run `rebuild-catalog`. Edit `library/catalog.json` to add semantic tags for better matching.
 
 ### Usage
 
-```powershell
-# Apply a theme from a JSON spec
-python modules/themes/apply-theme.py --spec '{"name":"ocean","accent_color":"#0077B6","mode":"dark",...}'
-
-# Check what theming capabilities are available on your machine
-python modules/themes/apply-theme.py --check
-
-# Stop the theme RGB lighting effect
-python modules/themes/apply-theme.py --stop-lighting
-```
-
-Or tell your AI agent in natural language:
+Tell your AI agent in natural language:
 
 > "Make everything forest themed"
 >
 > "Give me a cozy autumn aesthetic"
 >
 > "Ocean theme — dark mode, blue everything"
+>
+> "Stop the theme lighting"
 
 ### How it works
 
@@ -435,23 +399,22 @@ The driver is installed to `%LocalAppData%\DynamicLightingDriver\`. All effect s
 
 ### Verify setup
 
-```powershell
-# Check your device is detected
-python modules/dynamic-lighting/lighting.py diagnose
+Open Copilot and try:
 
-# Quick test — set all LEDs to green
-python modules/dynamic-lighting/lighting.py set-color "#00FF00"
-```
+> "What lighting devices do I have?"
+>
+> "Set all my LEDs to green"
 
 ### Set up Spotify integration (optional)
 
 ```powershell
 # Authenticate with your Spotify account (opens browser — log in and click Agree)
 python modules/spotify/auth.py
-
-# Test it — play a song on Spotify, then:
-python modules/spotify/spotify-sync.py start --beat-sync
 ```
+
+Then play a song on Spotify and tell your agent:
+
+> "Sync my keyboard to Spotify with beat sync"
 
 ### Troubleshooting
 
