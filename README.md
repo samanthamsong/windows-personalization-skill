@@ -33,10 +33,11 @@ This is a Copilot Skill — a set of instructions and tools that AI agents can i
 **On a fresh Windows 11 machine**, install all prerequisites at once:
 
 ```powershell
-winget install Git.Git Microsoft.DotNet.SDK.9 Python.Python.3.12 Microsoft.WinAppCli
+winget install Git.Git Microsoft.DotNet.SDK.9 Python.Python.3.12 Microsoft.WinAppCli `
+  --accept-package-agreements --accept-source-agreements
 ```
 
-Then restart your terminal so the new tools are on your PATH.
+Then **close and reopen your terminal** so the new tools are on your PATH.
 
 > **Windows Settings (do both before running setup):**
 > 1. **Developer Mode:** Go to **Settings → System → For developers** and turn on **Developer Mode**. This is required for sideloading the driver's AppX package identity.
@@ -53,18 +54,21 @@ cd "$HOME\.copilot\skills\windows-personalization"
 
 > **Already cloned somewhere else?** Run `.\setup.ps1` — it creates a junction from `~/.copilot/skills/windows-personalization/` to the repo automatically.
 
-### 2. Run setup (as admin)
+### 2. Run setup
 
-The first run **must be elevated** so the dev certificate can be added to the machine trust store:
+> ⚠️ **AI agents cannot approve the UAC prompt.** The first run requires admin privileges for certificate trust. The user must run this step manually from an elevated PowerShell.
+
+Open PowerShell **as Administrator**, then run:
 
 ```powershell
-Start-Process powershell -Verb RunAs -ArgumentList "-File $PWD\setup.ps1"
+cd "$HOME\.copilot\skills\windows-personalization"
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
 After the first run, subsequent runs can use a normal terminal:
 
 ```powershell
-.\setup.ps1
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
 This will:
@@ -75,7 +79,7 @@ This will:
 5. Register for AppX package identity (needed for LampArray API access)
 6. Verify everything works
 
-> ⚠️ **Important:** After setup, go to **Settings → Personalization → Dynamic Lighting → Background light control** and move **Dynamic Lighting Driver** so it is **below** "Dynamic Lighting Background Controller" in the priority list.
+> ⚠️ **Important:** After setup, go to **Settings → Personalization → Dynamic Lighting → Background light control** and move **Dynamic Lighting Driver** so it is **above** "Dynamic Lighting Background Controller" in the priority list.
 
 ### 3. Try it!
 
@@ -127,19 +131,7 @@ Per-lamp Python scripts that create pixel-level animations on your keyboard.
 
 This repo is structured as a [Copilot personal skill](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-skills). The `SKILL.md` at the repo root tells AI agents how to use the lighting, themes, and Spotify modules.
 
-### Automatic (recommended)
-
-Running `.\setup.ps1` installs everything — including registering the skill with Copilot:
-
-```powershell
-git clone https://github.com/samanthamsong/windows-personalization-skill.git "$HOME\.copilot\skills\windows-personalization"
-cd "$HOME\.copilot\skills\windows-personalization"
-.\setup.ps1
-```
-
-### Manual
-
-If you've already cloned the repo elsewhere:
+For full installation, follow the [Quick Start](#-quick-start) above. If you've already cloned the repo elsewhere and just need to register the skill:
 
 ```powershell
 # Create a junction so Copilot can find the skill
@@ -148,13 +140,15 @@ cmd /c mklink /J "%USERPROFILE%\.copilot\skills\windows-personalization" "C:\pat
 
 ### Verify
 
-In the Copilot CLI, run:
+In the Copilot CLI, start a new session and run:
 
 ```
-/skills info windows-personalization
+/skills
 ```
 
-> **Note:** If you move or rename the repo directory, re-run `.\setup.ps1` to update the link.
+Confirm `windows-personalization` appears in the list.
+
+> **Note:** If you move or rename the repo directory, re-run `.\setup.ps1` to update the link. You may need to restart Copilot CLI or start a new session for changes to take effect.
 
 ## 📁 Repo Structure
 
@@ -424,44 +418,9 @@ A layout library + context layer for managing window arrangements:
 
 ## 🛠️ Developer Setup
 
-Want to run this on your own machine from scratch? Here's the full setup:
+For standard installation, follow the [Quick Start](#-quick-start) above. This section covers manual building and advanced setup.
 
-### System requirements
-
-- **OS:** Windows 11 22H2 or newer (Build 22621+)
-- **Hardware:** Any Dynamic Lighting compatible RGB device
-- **Developer mode:** Enable in **Settings → System → For developers → Developer Mode**
-
-### Install dependencies
-
-```powershell
-# .NET 9 SDK
-winget install Microsoft.DotNet.SDK.9
-
-# Python 3.12
-winget install Python.Python.3.12
-
-# WinAppCLI (for MSIX packaging and signing)
-winget install Microsoft.WinAppCli
-
-# Python dependencies (for effects and Spotify integration)
-pip install spotipy Pillow requests pycaw comtypes numpy
-```
-
-### Clone and build
-
-```powershell
-# Clone directly into the skills directory (recommended)
-git clone https://github.com/samanthamsong/windows-personalization-skill.git "$HOME\.copilot\skills\windows-personalization"
-cd "$HOME\.copilot\skills\windows-personalization"
-
-# One-command setup (builds, installs, registers skill)
-.\setup.ps1
-```
-
-If you clone elsewhere, `setup.ps1` will create a junction to `~/.copilot/skills/windows-personalization/` automatically.
-
-Or manually:
+### Manual build (if not using setup.ps1)
 
 ```powershell
 # Build the driver

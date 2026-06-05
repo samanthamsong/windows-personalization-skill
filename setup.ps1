@@ -119,7 +119,11 @@ if (-not (Test-Path $SkillsDir)) {
 
 if (Test-Path $SkillLink) {
     $existing = Get-Item $SkillLink -Force
-    if ($existing.LinkType -eq "Junction" -or $existing.LinkType -eq "SymbolicLink") {
+    $resolvedLink = (Resolve-Path $SkillLink -ErrorAction SilentlyContinue).Path
+    $resolvedRepo = (Resolve-Path $PSScriptRoot -ErrorAction SilentlyContinue).Path
+    if ($resolvedLink -eq $resolvedRepo) {
+        Write-Host "  Skill already installed at canonical path." -ForegroundColor Green
+    } elseif ($existing.LinkType -eq "Junction" -or $existing.LinkType -eq "SymbolicLink") {
         $target = $existing.Target
         if ($target -eq $PSScriptRoot) {
             Write-Host "  Skill already linked to this repo." -ForegroundColor Green
@@ -176,7 +180,7 @@ if ($allGood) {
     Write-Host ""
     Write-Host "  IMPORTANT: Go to Settings -> Personalization -> Dynamic Lighting" -ForegroundColor Yellow
     Write-Host "  -> Background light control and ensure 'Dynamic Lighting Driver'" -ForegroundColor Yellow
-    Write-Host "  is BELOW 'Dynamic Lighting Background Controller' in priority." -ForegroundColor Yellow
+    Write-Host "  is ABOVE 'Dynamic Lighting Background Controller' in priority." -ForegroundColor Yellow
     Write-Host ""
     Write-Host "  Skill installed to: $SkillLink" -ForegroundColor Cyan
     Write-Host "  If you move this repo, re-run setup.ps1 to update the link." -ForegroundColor Cyan
