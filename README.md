@@ -1,6 +1,6 @@
 # 🎨 Windows Personalization Skill
 
-Personalize your Windows PC with natural language. Tell an AI assistant *"make everything pink!"* and watch it transform your RGB lighting, window layouts, desktop vibes, and more.
+Personalize your Windows PC with natural language. Tell an AI assistant *"make everything pink!"* and watch it transform your RGB lighting, desktop vibes, and more.
 
 This is a Copilot Skill — a set of instructions and tools that AI agents can invoke automatically.
 
@@ -13,7 +13,6 @@ This is a Copilot Skill — a set of instructions and tools that AI agents can i
 | [🎨 Themes](modules/themes/) | ✅ Available | Full desktop + RGB theming from a single prompt |
 | 🔊 Sounds | 🔜 Planned | Sound customization |
 | 🖼️ Wallpaper | 🔜 Planned | Wallpaper management |
-| 🪟 Windowing | 🔜 Planned | Save, restore, and create aesthetic window layouts |
 
 ## 🚀 Quick Start
 
@@ -361,7 +360,6 @@ This skill is the first step toward full Windows personalization via natural lan
 - ✅ **V2.2:** Spotify integration (album colors, mood mapping, beat-sync)
 - ✅ **V3:** Themes (wallpaper + accent + taskbar + dark/light mode + RGB lighting from one prompt)
 - 🔜 **V3.1:** Multi-peripheral sync (mouse, headset, mousepad match keyboard effects)
-- 🔜 **V4:** Windowing (save/restore/create aesthetic window layouts)
 
 ### 🔆 Multi-Peripheral Sync (planned)
 
@@ -370,15 +368,6 @@ The Dynamic Lighting driver already discovers all DL-compatible devices (keyboar
 - **Device-aware rendering** — adapt effects to each device's geometry (a mouse has ~2-5 zones vs. 87 keys)
 - **Sync all mode** — push matching frames to every connected device simultaneously
 - **Unified vibe** — koi fish swim across your keyboard while your mouse glows the pond color and your headset pulses with the ripples
-
-### 🪟 Windowing (planned)
-
-A layout library + context layer for managing window arrangements:
-
-- **Pre-baked layouts** — "Dev Setup" (editor + terminal + browser), "Meeting Mode" (Teams + notes), "Content Creation" (timeline + preview + assets)
-- **Aesthetic arrangements** — "cascade my windows like cards," "golden ratio tiling," "messy desk" (slightly rotated, overlapping)
-- **Save custom layouts** — "save this as my coding layout" with friendly names
-- **Context-aware restore** — adapts to monitor count and resolution automatically
 
 ## 🛠️ Developer Setup
 
