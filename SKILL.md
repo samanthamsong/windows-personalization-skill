@@ -15,7 +15,7 @@ Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, 
 **Prerequisites:**
 - Windows 11 22H2+ with a Dynamic Lighting compatible device
 - Developer Mode enabled (Settings → System → For developers)
-- Git, .NET 9+ SDK, Python 3.10+, WinAppCLI
+- Git, .NET 9+ SDK, Python 3.10+
 - Driver must be installed to `%LocalAppData%\DynamicLightingDriver\`
 
 **First-time setup:** If the driver is not installed, run setup from the skill directory:
@@ -28,7 +28,7 @@ git clone https://github.com/samanthamsong/windows-personalization-skill.git "$H
 cd "$HOME\.copilot\skills\windows-personalization"
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
-This builds the driver, installs it, and registers for package identity. Only needed once. The first run requires an elevated (admin) PowerShell for certificate trust. After installing, restart Copilot CLI or start a new session.
+This builds the driver, installs it, and registers for package identity. Only needed once. After installing, restart Copilot CLI or start a new session.
 
 **CLI Commands:**
 

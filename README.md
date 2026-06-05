@@ -24,7 +24,6 @@ This is a Copilot Skill — a set of instructions and tools that AI agents can i
 | Git | Any | `winget install Git.Git` |
 | .NET SDK | 9.0+ | `winget install Microsoft.DotNet.SDK.9` or [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/9.0) |
 | Python | 3.10+ | `winget install Python.Python.3.12` or [python.org](https://www.python.org/downloads/) |
-| WinAppCLI | 0.2+ | `winget install Microsoft.WinAppCli` |
 | Developer Mode | — | **Required.** Settings → System → For developers → Developer Mode (ON) |
 | Dynamic Lighting device | — | Any [compatible](https://support.microsoft.com/en-us/windows/control-your-dynamic-lighting-devices-in-windows-8e9f9b1f-6844-4c5e-9873-d836e87fcb7f) RGB keyboard, mouse, light strip, etc. |
 | Spotify account | — | Free or Premium (only needed for Spotify integration) |
@@ -32,7 +31,7 @@ This is a Copilot Skill — a set of instructions and tools that AI agents can i
 **On a fresh Windows 11 machine**, install all prerequisites at once:
 
 ```powershell
-winget install Git.Git Microsoft.DotNet.SDK.9 Python.Python.3.12 Microsoft.WinAppCli `
+winget install Git.Git Microsoft.DotNet.SDK.9 Python.Python.3.12 `
   --accept-package-agreements --accept-source-agreements
 ```
 
@@ -55,23 +54,12 @@ cd "$HOME\.copilot\skills\windows-personalization"
 
 ### 2. Run setup
 
-> ⚠️ **AI agents cannot approve the UAC prompt.** The first run requires admin privileges for certificate trust. The user must run this step manually from an elevated PowerShell.
-
-Open PowerShell **as Administrator**, then run:
-
-```powershell
-cd "$HOME\.copilot\skills\windows-personalization"
-powershell -ExecutionPolicy Bypass -File .\setup.ps1
-```
-
-After the first run, subsequent runs can use a normal terminal:
-
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\setup.ps1
 ```
 
 This will:
-1. Check prerequisites (.NET 9, Python 3, WinAppCLI, Developer Mode)
+1. Check prerequisites (.NET 9, Python 3, Developer Mode)
 2. Install Python dependencies
 3. Build the .NET driver
 4. Install the driver to `%LocalAppData%\DynamicLightingDriver\`
@@ -410,9 +398,8 @@ Then play a song on Spotify and tell your agent:
 | Issue | Fix |
 |-------|-----|
 | "No devices found" | Ensure Dynamic Lighting is on in Settings → Personalization → Dynamic Lighting |
-| "Access denied" during registration | Run PowerShell as admin for the first registration |
+| Registration failed | Ensure Developer Mode is enabled: Settings → System → For developers → Developer Mode (ON) |
 | Driver not taking effect | Move "Dynamic Lighting Driver" to top of priority list in Dynamic Lighting settings |
-| Certificate trust error on `Add-AppxPackage` | Run `Register-AmbientLighting.ps1` once from an admin prompt |
 | Effects not showing on keyboard | Check that no other lighting app (iCUE, SignalRGB, etc.) is overriding |
 | Spotify auth fails | Ensure you clicked "Agree" in the browser; check that `http://127.0.0.1:8888/callback` is in your app's redirect URIs |
 | Spotify "403 Forbidden" on audio features | Spotify recently restricted this API for new apps — mood defaults to "neutral" but album colors still work |
@@ -422,9 +409,6 @@ Then play a song on Spotify and tell your agent:
 ```powershell
 # Remove the registered package
 Get-AppxPackage *DynamicLightingDriver* | Remove-AppxPackage
-
-# Remove trusted certificate (optional)
-Get-ChildItem "Cert:\CurrentUser\TrustedPeople" | Where-Object { $_.Subject -eq "CN=DynamicLightingDriver" } | Remove-Item
 ```
 
 ## 🤝 Contributing

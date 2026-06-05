@@ -43,15 +43,6 @@ if ($pythonVer -and $pythonVer -match "3\.\d+") {
     $missing += "Python 3.10+ (winget install Python.Python.3.12)"
 }
 
-# WinAppCLI
-$winappVer = $null
-try { $winappVer = (winapp --version 2>$null) } catch {}
-if ($winappVer) {
-    Write-Host "  WinAppCLI: $winappVer" -ForegroundColor Green
-} else {
-    $missing += "WinAppCLI (winget install Microsoft.WinAppCli)"
-}
-
 # Developer Mode
 $devMode = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock" -ErrorAction SilentlyContinue
 if ($devMode -and $devMode.AllowDevelopmentWithoutDevLicense -eq 1) {
@@ -191,5 +182,5 @@ if ($allGood) {
     Write-Host "    python modules/dynamic-lighting/lighting.py run-effect koi-fish"
 } else {
     Write-Host "`n  Setup had issues. See errors above." -ForegroundColor Red
-    Write-Host "  Try running as admin: Start-Process powershell -Verb RunAs -ArgumentList '-File $PSCommandPath'" -ForegroundColor Yellow
+    Write-Host "  Ensure Developer Mode is enabled: Settings > System > For developers > Developer Mode (ON)" -ForegroundColor Yellow
 }
