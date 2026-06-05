@@ -113,6 +113,33 @@ runner.run(render_frame, fps=8)
 - For layered effects: compute a base layer, then overlay elements on top
 - Keep FPS at ~8 for smooth performance
 
+**Device-aware rendering:**
+When generating effects, adapt the animation to each device's type and geometry. Use `device.kind` or the convenience booleans (`device.is_keyboard`, `device.is_mouse`, `device.is_strip`, `device.is_headset`) to tailor the rendering:
+
+| Device | Typical lamps | Rendering guidance |
+|--------|--------------|-------------------|
+| **Keyboard** | 80–110 | Full 2D spatial effects — waves, swimming objects, ripples, gradients across the key grid |
+| **Mouse** | 2–15 | Simplified — use a single accent color, slow pulse, or pick the dominant color from the effect's palette. Don't render complex spatial scenes. |
+| **Headset** | 1–3 | Ambient glow — use the background/mood color of the effect, or a slow breathe. Each ear cup is one zone. |
+| **LampStrip** | Varies | 1D effects — linear gradients, chase sequences, or color waves along the strip's length (lamps are spread across x at y=0.5) |
+| **LampArray** (generic) | Varies | Treat like a strip unless geometry suggests otherwise |
+
+Example pattern:
+```python
+def render_frame(device, t):
+    if device.is_keyboard:
+        # Full spatial effect with per-key detail
+        ...
+    elif device.is_mouse:
+        # Simplified: dominant palette color with slow pulse
+        brightness = math.sin(t * 1.5) * 0.2 + 0.8
+        color = scale_color(PALETTE[0], brightness)
+        return {str(lamp['idx']): hex_color(*color) for lamp in device.lamps}
+    else:
+        # Headset, strip, other: ambient glow from palette
+        return {str(lamp['idx']): hex_color(*PALETTE[0]) for lamp in device.lamps}
+```
+
 **Example reference effects in `modules/dynamic-lighting/effects/`:**
 - `koi-fish.py` — animated fish with body segments, water ripples, lily pads, caustic shimmer
 - `cherry-blossom.py` — falling petals with wind physics
