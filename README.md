@@ -25,7 +25,7 @@ This is a Copilot Skill — a set of instructions and tools that AI agents can i
 | .NET SDK | 9.0+ | `winget install Microsoft.DotNet.SDK.9` or [dotnet.microsoft.com](https://dotnet.microsoft.com/download/dotnet/9.0) |
 | Python | 3.10+ | `winget install Python.Python.3.12` or [python.org](https://www.python.org/downloads/) |
 | Developer Mode | — | **Required.** Settings → System → For developers → Developer Mode (ON) |
-| Dynamic Lighting device | — | Any [compatible](https://support.microsoft.com/en-us/windows/control-your-dynamic-lighting-devices-in-windows-8e9f9b1f-6844-4c5e-9873-d836e87fcb7f) RGB keyboard, mouse, light strip, etc. |
+| Dynamic Lighting device | — | Any [compatible](https://learn.microsoft.com/en-us/windows-hardware/design/component-guidelines/dynamic-lighting-devices) RGB keyboard, mouse, light strip, etc. |
 | Spotify account | — | Free or Premium (only needed for Spotify integration) |
 
 **On a fresh Windows 11 machine**, install all prerequisites at once:
