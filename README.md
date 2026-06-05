@@ -2,7 +2,7 @@
 
 Personalize your Windows PC with natural language. Tell an AI assistant *"make everything pink!"* and watch it transform your RGB lighting, window layouts, desktop vibes, and more.
 
-This is a [Copilot Skill](https://docs.github.com/en/copilot/building-copilot-skills) — a set of instructions and tools that AI agents can invoke automatically.
+This is a Copilot Skill — a set of instructions and tools that AI agents can invoke automatically.
 
 ## ✨ What's Inside
 
