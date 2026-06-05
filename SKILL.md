@@ -18,11 +18,15 @@ Control Dynamic Lighting compatible RGB devices (keyboards, mice, light strips, 
 - Git, .NET 9+ SDK, Python 3.10+
 - Driver must be installed to `%LocalAppData%\DynamicLightingDriver\`
 
-**First-time setup:** If the driver is not installed, run setup from the skill directory:
+**Before using any lighting command, check if the driver is installed:**
 ```
-.\setup.ps1
+python modules/dynamic-lighting/lighting.py diagnose
 ```
-If the skill is not yet installed, clone the repo and run setup:
+If this reports "Driver exe not found" or fails, the driver needs to be installed. Run setup from the skill directory:
+```
+powershell -ExecutionPolicy Bypass -File .\setup.ps1
+```
+If the skill is not yet cloned, clone and set up:
 ```
 git clone https://github.com/samanthamsong/windows-personalization-skill.git "$HOME\.copilot\skills\windows-personalization"
 cd "$HOME\.copilot\skills\windows-personalization"
@@ -321,6 +325,8 @@ When a theme involves a wallpaper change, always evaluate the prompt against cop
 **Capability-aware**: The tool auto-detects what's available. If registry writes aren't possible, desktop styling is skipped. If no DL device is found, lighting is skipped. The tool always reports what it applied and what it skipped.
 
 ## Routing
+
+**Before any lighting or effect command**, run `python modules/dynamic-lighting/lighting.py diagnose` to verify the driver is installed and devices are detected. If the driver is missing, run `powershell -ExecutionPolicy Bypass -File .\setup.ps1` to install it.
 
 When the user's request involves:
 - **"Create/generate/make a new effect/animation"** → Generate a standalone effect script in `modules/dynamic-lighting/effects/` (see template above)
