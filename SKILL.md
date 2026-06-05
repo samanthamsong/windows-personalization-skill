@@ -147,6 +147,14 @@ def render_frame(device, t):
 - `enchanted-forest.py` — layered forest floor with firefly overlay
 - `water-droplets.py` — raindrops on a pond with expanding ripple rings and lily pads
 
+**Keypress-reactive effects:**
+Some effects react to keyboard input (e.g., "light up keys as I type", "ripple from each keypress"). These require the `pynput` package for keyboard event capture. Before generating a keypress-reactive effect:
+1. Install the dependency: `pip install pynput`
+2. Use `pynput.keyboard.Listener` in a background thread to track key events
+3. Map key events to lamp positions and trigger visual feedback (ripples, flashes, trails, etc.)
+
+If `pynput` is not installed and the user requests a keypress-reactive effect, install it automatically with `pip install pynput` before running the effect.
+
 ### 🔔 Alert-Based Lighting Rules (Available)
 Set up rules that trigger lighting effects when Windows notifications arrive.
 
