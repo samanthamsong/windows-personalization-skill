@@ -324,6 +324,43 @@ When a theme involves a wallpaper change, always evaluate the prompt against cop
 
 **Capability-aware**: The tool auto-detects what's available. If registry writes aren't possible, desktop styling is skipped. If no DL device is found, lighting is skipped. The tool always reports what it applied and what it skipped.
 
+## Troubleshooting
+
+When lighting isn't working, diagnose systematically using these steps:
+
+**Step 1: Run diagnostics**
+```
+python modules/dynamic-lighting/lighting.py diagnose
+```
+This checks package identity, device detection, availability, and applies a red test color. Read the output carefully — it tells you exactly what's failing.
+
+**Step 2: Interpret common failures**
+
+| Symptom | Likely cause | Fix |
+|---------|-------------|-----|
+| "Driver exe not found" | Driver not installed | Run `powershell -ExecutionPolicy Bypass -File .\setup.ps1` |
+| "No devices found" | Dynamic Lighting disabled or no compatible device | Settings → Personalization → Dynamic Lighting → turn ON |
+| "Has identity: NO" | Package not registered | Re-run `setup.ps1`; ensure Developer Mode is ON |
+| "IsAvailable: False" | Another app has control | See Step 3 (competing apps) |
+| Color set but instantly reverts | Stale holder/driver processes | Run `python modules/dynamic-lighting/lighting.py stop` first |
+| Color only on one device | Old driver version | Re-run `setup.ps1` to update |
+
+**Step 3: Check for competing lighting apps**
+Other RGB software can override Dynamic Lighting. Check for these running processes:
+```powershell
+Get-Process -Name iCUE*, SignalRGB*, OpenRGB*, LGHub*, Razer*, Synapse*, ArmouryCrate*, AURA* -ErrorAction SilentlyContinue | Select-Object Name, Id
+```
+If found, the user should either close the competing app or disable its device control. Common offenders: iCUE (Corsair), SignalRGB, OpenRGB, Logitech G Hub, Razer Synapse, ASUS Armoury Crate.
+
+**Step 4: Check DL priority**
+The driver must be **above** "Dynamic Lighting Background Controller" in: Settings → Personalization → Dynamic Lighting → Background light control. If it's below, the system controller overrides it.
+
+**Step 5: Check for stale processes**
+```
+python modules/dynamic-lighting/lighting.py stop
+```
+This kills any leftover effect, holder, and driver processes. Then retry.
+
 ## Routing
 
 **Before any lighting or effect command**, run `python modules/dynamic-lighting/lighting.py diagnose` to verify the driver is installed and devices are detected. If the driver is missing, run `powershell -ExecutionPolicy Bypass -File .\setup.ps1` to install it.
