@@ -241,8 +241,14 @@ All fields are optional — the tool applies what it can and gracefully skips th
 | `dl_palette` | string[] | 2-6 hex colors for RGB lighting effect |
 | `dl_style` | string | `"wave"`, `"breathe"`, `"shimmer"`, `"static"`, or `"pulse"` |
 
-**Wallpaper source priority:** direct URL → museum art search → Unsplash photo search.
+**Wallpaper source priority:** direct URL → museum art search → Unsplash photo search → generate locally in Paint.
 Wallpapers are cached per theme name in `~/Pictures/themes/` so re-applying a theme reuses the same image.
+
+**⚠️ IMPORTANT — Wallpaper copyright policy:**
+When a theme involves a wallpaper change, always evaluate the prompt against copyright restrictions **before** attempting to fetch an image:
+1. If the prompt can be fulfilled with a free-to-use image (nature, abstract, landscapes, etc.), use Unsplash or museum open-access collections.
+2. If the prompt references copyrighted characters, brands, logos, or specific protected artwork that cannot be freely sourced, **skip fetching entirely** and generate the wallpaper locally using Paint (mspaint) or PowerShell drawing. This avoids repeated failed download attempts.
+3. When in doubt, generate locally — a custom-drawn wallpaper is better than multiple failed fetches.
 
 **Example Prompt Mappings:**
 
@@ -265,6 +271,7 @@ Wallpapers are cached per theme name in `~/Pictures/themes/` so re-applying a th
    - **Art/painting themes** (e.g., "impressionist", "watercolor", "abstract art"): Use `art_search` with the style or subject. This searches museum collections for actual artwork.
    - **Photo themes** (e.g., "ocean", "forest", "sunset"): Use `wallpaper_search` for Unsplash photos.
    - **Specific image**: Use `wallpaper_url` with a direct link. Always provide a fallback (`art_search` or `wallpaper_search`).
+   - **⚠️ Copyright-aware wallpaper sourcing:** Before fetching a wallpaper, evaluate whether the request can be fulfilled with a free-to-use image. If the prompt references copyrighted characters, brands, or specific artwork you cannot freely source, **do not attempt to fetch** — instead, generate the wallpaper yourself using Paint (mspaint) or another local drawing tool. This avoids repeated failed fetch attempts. Prefer free sources (Unsplash, museum open-access collections) over arbitrary web URLs.
 4. **Mode**: Choose dark or light based on the theme mood (dark for moody/gaming/night themes, light for bright/cute/nature themes)
 5. **Taskbar**: Usually `true` for bold themes (forest green, ocean blue), `false` for subtle/light themes
 6. **DL style**: Match the theme mood — `wave` (flowing/natural), `breathe` (calm/ambient), `shimmer` (sparkly/magical), `static` (clean/minimal), `pulse` (energetic/gaming), `droplet` (water/rain/pond)
